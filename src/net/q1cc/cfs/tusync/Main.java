@@ -1,14 +1,11 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
 package net.q1cc.cfs.tusync;
 
+import java.awt.EventQueue;
 import java.util.Properties;
 
 /**
  *
- * @author claus
+ * @author cfstras
  */
 public class Main {
     private static Main inst;
@@ -23,15 +20,15 @@ public class Main {
         
     }
     private void init() {
-        gui = new GUI();
-        gui.setVisible(true);
+		gui = new GUI();
+
         tunesManager = new TunesManager();
     }
     public static Main instance() {
         return inst;
     }
-    public static void main(String args){
+    public static void main(String[] args){
         inst = new Main();
-        
+        inst.init();
     }
 }

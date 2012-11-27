@@ -28,6 +28,7 @@ public class GUI {
     JFrame frame;
     private JTextField libPathField;
     JProgressBar progressBar;
+    JTree tree;
 
     /**
      * Create the application.
@@ -93,7 +94,7 @@ public class GUI {
         });
         top.add(btnChoose);
 
-        JTree tree = new JTree();
+        tree = new JTree();
         tree.setModel(new DefaultTreeModel(
                 new DefaultMutableTreeNode("Please select your Library Folder.") {
                     {

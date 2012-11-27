@@ -25,4 +25,7 @@ public class Playlist {
     public synchronized void addTitle(Title t) {
         tracks.put(t.id,t);
     }
+    public String toString() {
+        return title+" ("+tracks.size()+")";
+    }
 }

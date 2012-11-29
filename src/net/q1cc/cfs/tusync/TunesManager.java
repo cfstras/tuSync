@@ -189,10 +189,11 @@ public class TunesManager {
             num++;
             if (num % listsPerProgress == 0 || num == numLists) {
                 main.gui.progressBar.setValue(++progress);
-                main.gui.progressBar.setString("reading tracks: " + num + " / " + numLists);
+                main.gui.progressBar.setString("reading playlists: " + num + " / " + numLists);
             }
         }
-        
+        main.gui.progressBar.setValue(0);
+        main.gui.progressBar.setString("");
         //playlists read. yay.
     }
 

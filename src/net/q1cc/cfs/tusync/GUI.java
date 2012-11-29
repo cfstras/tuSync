@@ -13,6 +13,7 @@ import java.awt.Dimension;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import java.awt.Component;
+import java.awt.ScrollPane;
 import javax.swing.Box;
 import javax.swing.JTree;
 import java.awt.event.ActionListener;
@@ -20,6 +21,9 @@ import java.awt.event.ActionEvent;
 import java.io.File;
 
 import javax.swing.JProgressBar;
+import javax.swing.JScrollBar;
+import javax.swing.JScrollPane;
+import javax.swing.ScrollPaneConstants;
 import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.DefaultMutableTreeNode;
 
@@ -29,6 +33,7 @@ public class GUI {
     private JTextField libPathField;
     JProgressBar progressBar;
     JTree tree;
+    JScrollPane scrollPane;
 
     /**
      * Create the application.
@@ -100,8 +105,11 @@ public class GUI {
                     {
                     }
                 }));
-        tree.setPreferredSize(new Dimension(500, 600));
-        frame.getContentPane().add(tree, BorderLayout.CENTER);
+        //tree.setPreferredSize(new Dimension(500, 600));
+        
+        scrollPane = new JScrollPane(tree, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+        scrollPane.setPreferredSize(new Dimension(550, 650));
+        frame.getContentPane().add(scrollPane, BorderLayout.CENTER);
 
         JPanel panel = new JPanel();
         frame.getContentPane().add(panel, BorderLayout.SOUTH);

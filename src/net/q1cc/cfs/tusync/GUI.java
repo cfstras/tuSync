@@ -60,27 +60,29 @@ public class GUI {
         frame = new JFrame();
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setTitle("tuSync");
-        frame.getContentPane().setLayout(new BorderLayout(0, 0));
+        frame.getContentPane().setLayout(new BorderLayout(10, 10));
 
         JPanel top = new JPanel();
         frame.getContentPane().add(top, BorderLayout.NORTH);
         top.setLayout(new BoxLayout(top, BoxLayout.X_AXIS));
 
-        JLabel lblItunesDirectory = new JLabel("iTunes Directory");
+        JLabel lblItunesDirectory = new JLabel("iTunes XML File");
         top.add(lblItunesDirectory);
 
-        Component horizontalStrut = Box.createHorizontalStrut(30);
-        top.add(horizontalStrut);
+        top.add(Box.createHorizontalStrut(30));
 
         libPathField = new JTextField();
         libPathField.addActionListener(new ActionListener() {
+            @Override
             public void actionPerformed(ActionEvent e) {
-                Main.instance().props.setProperty("lib.basepath", GUI.this.libPathField.getText());
+                Main.instance().props.setProperty("lib.xmlfile", GUI.this.libPathField.getText());
             }
         });
         top.add(libPathField);
         libPathField.setColumns(10);
-
+        
+        top.add(Box.createHorizontalStrut(10));
+        
         JButton btnChoose = new JButton("Choose");
         btnChoose.addActionListener(new ActionListener() {
             @SuppressWarnings("serial")
@@ -155,11 +157,15 @@ public class GUI {
         });
         panel.setLayout(new BoxLayout(panel, BoxLayout.X_AXIS));
         panel.add(btnLoadDB);
-
+        
+        panel.add(Box.createHorizontalStrut(10));
+        
         progressBar = new JProgressBar();
         progressBar.setStringPainted(true);
         panel.add(progressBar);
-
+        
+        panel.add(Box.createHorizontalStrut(10));
+        
         JButton btnStartSyncing = new JButton("Start Syncing");
         panel.add(btnStartSyncing);
         frame.setLocationByPlatform(true);

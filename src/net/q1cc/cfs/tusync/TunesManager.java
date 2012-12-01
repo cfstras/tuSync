@@ -7,12 +7,16 @@ package net.q1cc.cfs.tusync;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 
 import javax.swing.JOptionPane;
+import javax.swing.ListModel;
+import javax.swing.event.ListDataEvent;
+import javax.swing.event.ListDataListener;
 import javax.swing.event.TreeModelEvent;
 import javax.swing.event.TreeModelListener;
 import javax.swing.tree.TreeModel;
@@ -30,14 +34,20 @@ public class TunesManager {
     private Main main;
     public ArrayList<Playlist> playlists;
     public HashMap<Integer,Title> titles;
+    private ReCheckThread reCheckThread;
     
     TunesModel libModel;
+    public boolean recheck;
+    long targetSize = 64*1000*1000*1000L;
 
     public TunesManager() {
         main = Main.instance();
         playlists = new ArrayList<Playlist>(32);
         titles = new HashMap<Integer, Title>(256);
         libModel = new TunesModel();
+        reCheckThread = new ReCheckThread();
+        reCheckThread.setPriority(Thread.MIN_PRIORITY);
+        reCheckThread.start();
     }
 
     public void loadLibrary() {
@@ -88,9 +98,9 @@ public class TunesManager {
 
         loadTracks(lib);
         loadPlaylists(lib);
-        main.gui.tree.setModel(libModel);
+        main.gui.list.setModel(libModel);
         libModel.fireUpdate();
-        main.gui.tree.expandRow(1);
+        //main.gui.tree.expandRow(1);
         //TODO serialize
         
         System.out.println("Fin.");
@@ -133,7 +143,7 @@ public class TunesManager {
                     System.out.println("Error: no row named "+e.getKey());
                     continue;
                 }
-                title.attribs[ind] = e.getValue().toString(); //TODO is this more efficient if we save objects instead of strings?
+                title.attribs[ind] = e.getValue(); //TODO is this more efficient if we save objects instead of strings?
             }
             titles.put(id, title);
             num++;
@@ -196,13 +206,82 @@ public class TunesManager {
         main.gui.progressBar.setString("");
         //playlists read. yay.
     }
+    
+    public long getPlaylistSize(Collection<Title> tracks, ArrayList<Long> ignore) {
+        int attribID = Title.getAttInd("Size");
+        long size = 0;
+        for(Title t : tracks) {
+            if(ignore.contains(t.id)) {
+                continue;
+            }
+            Object s = t.attribs[attribID];
+            if (s instanceof Integer) {
+                size += (Integer)s;
+            } else {
+                System.out.println("no size for "+t);
+            }
+            ignore.add(t.id);
+        }
+        return size;
+    }
 
-    private class TunesModel implements TreeModel {
+    public void reCheck() {
+        recheck=true;
+        reCheckThread.interrupt();
+    }
+    
+    protected void doReCheck() {
+        recheck=false;
+        long size = 0;
+        ArrayList<Long> ignore = new ArrayList<Long>(256);
+        for(Playlist p : playlists) {
+            if(p.selected) {
+                size += getPlaylistSize(p.tracks.values(),ignore);
+            }
+        }
+        long sizeDiv = targetSize/500;
+        main.gui.progressBar.setMaximum((int)(targetSize/sizeDiv));
+        main.gui.progressBar.setValue((int)(size/sizeDiv));
+        main.gui.progressBar.setString(humanize(size)+" / "+humanize(targetSize));
+        main.gui.progressBar.setStringPainted(true);
+    }
+    
+    private static final String siPrefixes = " KMGTPE";
+    private static String humanize(long bytes) {
+        int prefixID = 0;
+        double divided = bytes;
+        while(divided >= 1000 && prefixID < siPrefixes.length()) {
+            divided /= 1024;
+            prefixID++;
+        }
+        return (Math.floor(divided*100)/100)+" "+siPrefixes.charAt(prefixID)+'B';
+    }
+    
+    private class ReCheckThread extends Thread {
+        boolean live = true;
+        @Override
+        public void run() {
+            while (live) {
+                if(TunesManager.this.recheck) {
+                    TunesManager.this.doReCheck();
+                } else {
+                    synchronized (this) {
+                        try {
+                            wait(5000);
+                        } catch (InterruptedException ex) {}
+                    }
+                }
+            }
+        }
+    }
+
+    private class TunesModel implements TreeModel,ListModel {
         
         public String root = "Music";
         String playlistsNode = "Playlists";
-        public ArrayList<TreeModelListener> listeners = new ArrayList<TreeModelListener>(2);
-        
+        public ArrayList<TreeModelListener> treeeners = new ArrayList<TreeModelListener>(2);
+        public ArrayList<ListDataListener> listeners = new ArrayList<ListDataListener>(2);
+                
         public TunesModel() {
             
         }
@@ -267,19 +346,43 @@ public class TunesManager {
 
         @Override
         public void addTreeModelListener(TreeModelListener l) {
-            listeners.add(l);
+            treeeners.add(l);
         }
 
         @Override
         public void removeTreeModelListener(TreeModelListener l) {
-            listeners.remove(l);
+            treeeners.remove(l);
         }
         
         public void fireUpdate() {
             TreeModelEvent t = new TreeModelEvent(root, new TreePath(root));
-            for(TreeModelListener l : listeners) {
+            for(TreeModelListener l : treeeners) {
                 l.treeStructureChanged(t);
             }
+            ListDataEvent e = new ListDataEvent(TunesManager.this, ListDataEvent.INTERVAL_ADDED, 0, getSize());
+            for(ListDataListener l : listeners) {
+                l.contentsChanged(e);
+            }
+        }
+
+        @Override
+        public int getSize() {
+            return TunesManager.this.playlists.size();
+        }
+
+        @Override
+        public Object getElementAt(int index) {
+            return  TunesManager.this.playlists.get(index);
+        }
+
+        @Override
+        public void addListDataListener(ListDataListener l) {
+            listeners.add(l);
+        }
+
+        @Override
+        public void removeListDataListener(ListDataListener l) {
+            listeners.remove(l);
         }
         
     }

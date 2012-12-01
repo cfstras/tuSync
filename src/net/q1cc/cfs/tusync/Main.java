@@ -20,9 +20,9 @@ public class Main {
         
     }
     private void init() {
-		gui = new GUI();
-
+	gui = new GUI();
         tunesManager = new TunesManager();
+        gui.tunesMan=tunesManager;
     }
     public static Main instance() {
         return inst;

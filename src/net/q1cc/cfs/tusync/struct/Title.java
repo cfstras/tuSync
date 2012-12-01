@@ -35,10 +35,21 @@ public class Title {
     }
     
     public long id;
-    public String[] attribs;
+    public Object[] attribs;
     
     public Title(long id) {
         this.id = id;
-        attribs = new String[attribNames.length];
+        attribs = new Object[attribNames.length];
+    }
+    
+    @Override
+    public String toString() {
+        StringBuilder b = new StringBuilder();
+        b.append("[");
+        for(int i=0;i<attribNames.length;i++) {
+            b.append(attribNames[i]).append(":").append(attribs[i]).append(";");
+        }
+        b.append("]");
+        return b.toString();
     }
 }

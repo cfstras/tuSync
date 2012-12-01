@@ -18,22 +18,32 @@ import javax.swing.Box;
 import javax.swing.JTree;
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.io.File;
+import javax.swing.DefaultListModel;
+import javax.swing.JCheckBox;
+import javax.swing.JList;
 
 import javax.swing.JProgressBar;
 import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
+import javax.swing.ListCellRenderer;
 import javax.swing.ScrollPaneConstants;
+import javax.swing.UIManager;
 import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.DefaultMutableTreeNode;
+import net.q1cc.cfs.tusync.struct.Playlist;
 
 public class GUI {
 
     JFrame frame;
     private JTextField libPathField;
     JProgressBar progressBar;
-    JTree tree;
+    //JTree tree;
+    JList list;
     JScrollPane scrollPane;
+    TunesManager tunesMan;
 
     /**
      * Create the application.
@@ -76,8 +86,8 @@ public class GUI {
             @SuppressWarnings("serial")
             public void actionPerformed(ActionEvent e) {
                 File home = new File(System.getProperty("user.home"));
-                File tunes = new File(home.toString()+"/Music/iTunes/");
-                if(tunes.exists()) {
+                File tunes = new File(home.toString() + "/Music/iTunes/");
+                if (tunes.exists()) {
                     home = tunes;
                 }
                 JFileChooser jfc = new JFileChooser(home) {
@@ -99,15 +109,37 @@ public class GUI {
         });
         top.add(btnChoose);
 
-        tree = new JTree();
-        tree.setModel(new DefaultTreeModel(
-                new DefaultMutableTreeNode("Please select your Library Folder.") {
-                    {
-                    }
-                }));
+        //tree = new JTree();
+        //tree.setModel(new DefaultTreeModel(
+        //        new DefaultMutableTreeNode("Please select your Library Folder.") {
+        //            {
+        //            }
+        //        }));
         //tree.setPreferredSize(new Dimension(500, 600));
+        list = new JList<Playlist>();
+        list.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                int index = list.locationToIndex(e.getPoint());
+                if (index != -1) {
+                    Playlist checkbox = (Playlist) list.getModel().getElementAt(
+                            index);
+                    checkbox.setSelected(!checkbox.isSelected());
+                    list.repaint();
+                }
+            }
+        });
+        list.setCellRenderer(new ListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+                Playlist p = (Playlist) value;
+                p.setText(p.toString());
+                if (!isSelected) p.setBackground(UIManager.getColor("List.background"));
+                return p;
+            }
+        });
         
-        scrollPane = new JScrollPane(tree, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+        scrollPane = new JScrollPane(list, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED, ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED);
         scrollPane.setPreferredSize(new Dimension(550, 650));
         frame.getContentPane().add(scrollPane, BorderLayout.CENTER);
 
@@ -116,6 +148,7 @@ public class GUI {
 
         JButton btnLoadDB = new JButton("Load DB");
         btnLoadDB.addActionListener(new ActionListener() {
+            @Override
             public void actionPerformed(ActionEvent e) {
                 Main.instance().tunesManager.loadLibrary();
             }

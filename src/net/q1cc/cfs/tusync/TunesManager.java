@@ -42,12 +42,15 @@ public class TunesManager {
 
     public TunesManager() {
         main = Main.instance();
-        playlists = new ArrayList<Playlist>(32);
-        titles = new HashMap<Integer, Title>(256);
+        initLib();
         libModel = new TunesModel();
         reCheckThread = new ReCheckThread();
         reCheckThread.setPriority(Thread.MIN_PRIORITY);
         reCheckThread.start();
+    }
+    private void initLib() {
+        playlists = new ArrayList<Playlist>(32);
+        titles = new HashMap<Integer, Title>(256);
     }
 
     public void loadLibrary() {
@@ -74,7 +77,8 @@ public class TunesManager {
     }
 
     public void loadLibraryE() throws XmlParseException, IOException, TunesParseException {
-        
+        initLib();
+        main.gui.progressBar.setString("Loading Library...");
         main.gui.progressBar.setIndeterminate(true);
 
         String path = main.props.getProperty("lib.basepath");
@@ -207,24 +211,22 @@ public class TunesManager {
         //playlists read. yay.
     }
     
-    public long getPlaylistSize(Collection<Title> tracks, ArrayList<Long> ignore) {
+    public long getPlaylistSize(Collection<Title> tracks, ArrayList<Long> ignore, long sizeBefore) {
         int attribID = Title.getAttInd("Size");
         long size = 0;
         for(Title t : tracks) {
             if(ignore.contains(t.id)) {
                 continue;
             }
-            Object s = t.attribs[attribID];
-            if (s instanceof Integer) {
-                size += (Integer)s;
-            } else {
-                System.out.println("no size for "+t);
-            }
+            t.selected = true;
+            size += t.getSizeOnDisk();
             ignore.add(t.id);
+            setProgressSize(targetSize, size+sizeBefore, false);
         }
         return size;
     }
-
+    
+    long lastSize = 0;
     public void reCheck() {
         recheck=true;
         reCheckThread.interrupt();
@@ -232,18 +234,32 @@ public class TunesManager {
     
     protected void doReCheck() {
         recheck=false;
+        lastSize = 0;
         long size = 0;
         ArrayList<Long> ignore = new ArrayList<Long>(256);
         for(Playlist p : playlists) {
             if(p.selected) {
-                size += getPlaylistSize(p.tracks.values(),ignore);
+                size += getPlaylistSize(p.tracks.values(),ignore, size);
             }
         }
+        setProgressSize(targetSize, size, true);
+    }
+    
+    static final String progressIndicator = "|/-\\";
+    private void setProgressSize(long targetSize, long size, boolean finished) {
+        if(!finished && size-lastSize < 1024) {
+            return;
+        }
+        long it = System.currentTimeMillis()/200;
+        it %= progressIndicator.length();
+        
         long sizeDiv = targetSize/500;
         main.gui.progressBar.setMaximum((int)(targetSize/sizeDiv));
         main.gui.progressBar.setValue((int)(size/sizeDiv));
-        main.gui.progressBar.setString(humanize(size)+" / "+humanize(targetSize));
+        main.gui.progressBar.setString(humanize(size)+" / "+humanize(targetSize)+
+                ((!finished)?" "+progressIndicator.charAt((int)it):" occupied."));
         main.gui.progressBar.setStringPainted(true);
+        lastSize = size;
     }
     
     private static final String siPrefixes = " KMGTPE";

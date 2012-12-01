@@ -93,7 +93,7 @@ public class GUI {
                 JFileChooser jfc = new JFileChooser(home) {
                     @Override
                     public boolean accept(File f) {
-                        return f.isDirectory() || f.getName().equals("iTunes Music Library.xml");
+                        return f.isDirectory() || f.getName().endsWith(".xml");
                     }
                 };
                 jfc.showOpenDialog(GUI.this.frame);

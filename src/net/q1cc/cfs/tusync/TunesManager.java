@@ -58,7 +58,7 @@ public class TunesManager {
             @Override
             public void run() {
                 try {
-                    Main.instance().tunesManager.loadLibraryE();
+                    Main.instance().tunesManager.doLoadLibrary();
                 } catch (TunesParseException e) {
                     System.out.println("Parse Error: " + e);
                 } catch (XmlParseException e) {
@@ -76,21 +76,21 @@ public class TunesManager {
         }.start();
     }
 
-    public void loadLibraryE() throws XmlParseException, IOException, TunesParseException {
+    public void doLoadLibrary() throws XmlParseException, IOException, TunesParseException {
         initLib();
         main.gui.progressBar.setString("Loading Library...");
         main.gui.progressBar.setIndeterminate(true);
 
         String path = main.props.getProperty("lib.basepath");
         if (path == null) {
-            JOptionPane.showMessageDialog(main.gui.frame, "Please select the path to your iTunes library first.");
+            JOptionPane.showMessageDialog(main.gui, "Please select the path to your iTunes library first.");
             //TODO open dialog
             return;
         }
         File tunesFolder = new File(path);
         File xmlFile = new File(tunesFolder.getAbsolutePath() + System.getProperty("file.separator") + "iTunes Music Library.xml");
         if (!xmlFile.exists()) {
-            JOptionPane.showMessageDialog(main.gui.frame, "Sorry, but i couldn't find your Library XML file.");
+            JOptionPane.showMessageDialog(main.gui, "Sorry, but i couldn't find your Library XML file.");
             //TODO find reason why xml was not found
             return;
         }
@@ -147,7 +147,11 @@ public class TunesManager {
                     System.out.println("Error: no row named "+e.getKey());
                     continue;
                 }
-                title.attribs[ind] = e.getValue(); //TODO is this more efficient if we save objects instead of strings?
+                Object val = e.getValue();
+                if(val instanceof String) {
+                    val = ((String)val).intern();
+                }
+                title.attribs[ind] = val;
             }
             titles.put(id, title);
             num++;
@@ -277,6 +281,7 @@ public class TunesManager {
         boolean live = true;
         @Override
         public void run() {
+            setName("ReCheckThread");
             while (live) {
                 if(TunesManager.this.recheck) {
                     TunesManager.this.doReCheck();

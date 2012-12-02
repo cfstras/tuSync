@@ -44,18 +44,14 @@ public class Title {
     }
     
     public static int getAttInd(String name) {
-        for(int i=0;i<attribNames.length;i++) {
-            if(attribNames[i].equals(name)) {
-                return i;
-            }
-        }
-        return -1;
+        return attribIndexes.get(name);
     }
     
     public long id;
     public Object[] attribs;
     public boolean selected;
     public File file;
+    public volatile boolean fileChecked;
     
     public Title(long id) {
         this.id = id;
@@ -63,18 +59,28 @@ public class Title {
     }
     
     public long getSizeOnDisk() {
-        Object kind = attribs[attribIndexes.get("Kind")];
+        if(fileChecked) {
+            return (Long)attribs[getAttInd("Size")];
+        }
+        
+        Object kind = attribs[getAttInd("Kind")];
         if(kind != null && kind instanceof String && ((String)kind).endsWith("Stream")) {
             selected = false;
+            attribs[getAttInd("Size")] = 0L;
+            fileChecked = true;
             return 0;
         }
         Object loc = attribs[attribIndexes.get("Location")];
         if(loc == null) {
             System.out.println("no location for "+toString());
+            attribs[getAttInd("Size")] = 0L;
+            fileChecked = true;
             return 0;
         }
         if(!(loc instanceof String)) {
             System.out.println("location not valid "+toString());
+            attribs[getAttInd("Size")] = 0L;
+            fileChecked = true;
             return 0;
         }
         
@@ -89,21 +95,28 @@ public class Title {
         } catch (Exception ex) {
             System.out.println(location);
             ex.printStackTrace();
+            attribs[getAttInd("Size")] = 0L;
+            fileChecked = true;
             return 0;
         }
         if(!f.exists()) {
             System.out.println("404 "+f.getAbsolutePath()+" in "+toString());
+            attribs[getAttInd("Size")] = 0L;
+            fileChecked = true;
             return 0;
         }
         if(!f.canRead()) {
             System.out.println("403 "+toString());
+            attribs[getAttInd("Size")] = 0L;
+            fileChecked = true;
             return 0;
         }
         file = f;
         long size = f.length();
         if(!new Long(size).equals( attribs[attribIndexes.get("Size")] )) {
-            attribs[attribIndexes.get("Size")] = size;
+            attribs[getAttInd("Size")] = size;
         }
+        fileChecked = true;
         return size;
     }
     

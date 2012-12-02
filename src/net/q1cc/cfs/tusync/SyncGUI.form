@@ -37,7 +37,7 @@
                       </Group>
                       <EmptySpace type="unrelated" max="-2" attributes="0"/>
                       <Group type="103" groupAlignment="0" attributes="0">
-                          <Component id="targetPath" max="32767" attributes="0"/>
+                          <Component id="targetPathField" max="32767" attributes="0"/>
                           <Component id="libPathField" max="32767" attributes="0"/>
                       </Group>
                       <EmptySpace type="unrelated" max="-2" attributes="0"/>
@@ -47,7 +47,7 @@
                       </Group>
                   </Group>
                   <Group type="102" alignment="0" attributes="0">
-                      <Component id="jButton3" min="-2" max="-2" attributes="0"/>
+                      <Component id="loadDBButton" min="-2" max="-2" attributes="0"/>
                       <EmptySpace type="unrelated" min="-2" max="-2" attributes="0"/>
                       <Component id="progressBar" pref="331" max="32767" attributes="0"/>
                       <EmptySpace type="unrelated" min="-2" max="-2" attributes="0"/>
@@ -70,7 +70,7 @@
               <EmptySpace min="-2" max="-2" attributes="0"/>
               <Group type="103" groupAlignment="3" attributes="0">
                   <Component id="jLabel2" alignment="3" min="-2" max="-2" attributes="0"/>
-                  <Component id="targetPath" alignment="3" min="-2" max="-2" attributes="0"/>
+                  <Component id="targetPathField" alignment="3" min="-2" max="-2" attributes="0"/>
                   <Component id="targetPathChooseButton" alignment="3" min="-2" max="-2" attributes="0"/>
               </Group>
               <EmptySpace max="-2" attributes="0"/>
@@ -78,7 +78,7 @@
               <EmptySpace max="-2" attributes="0"/>
               <Group type="103" groupAlignment="0" max="-2" attributes="0">
                   <Group type="103" groupAlignment="3" attributes="0">
-                      <Component id="jButton3" max="32767" attributes="0"/>
+                      <Component id="loadDBButton" max="32767" attributes="0"/>
                       <Component id="jButton4" max="32767" attributes="0"/>
                   </Group>
                   <Component id="progressBar" max="32767" attributes="0"/>
@@ -112,12 +112,18 @@
         <Property name="text" type="java.lang.String" value="Target Directory"/>
       </Properties>
     </Component>
-    <Component class="javax.swing.JTextField" name="targetPath">
+    <Component class="javax.swing.JTextField" name="targetPathField">
+      <Events>
+        <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="targetPathFieldActionPerformed"/>
+      </Events>
     </Component>
     <Component class="javax.swing.JButton" name="targetPathChooseButton">
       <Properties>
         <Property name="text" type="java.lang.String" value="Choose..."/>
       </Properties>
+      <Events>
+        <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="targetPathChooseButtonActionPerformed"/>
+      </Events>
     </Component>
     <Container class="javax.swing.JScrollPane" name="jScrollPane1">
       <AuxValues>
@@ -141,12 +147,12 @@
         </Component>
       </SubComponents>
     </Container>
-    <Component class="javax.swing.JButton" name="jButton3">
+    <Component class="javax.swing.JButton" name="loadDBButton">
       <Properties>
         <Property name="text" type="java.lang.String" value="Load DB"/>
       </Properties>
       <Events>
-        <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="jButton3ActionPerformed"/>
+        <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="loadDBButtonActionPerformed"/>
       </Events>
     </Component>
     <Component class="javax.swing.JButton" name="jButton4">

@@ -57,6 +57,7 @@ public class SyncGUI extends javax.swing.JFrame {
                 return p;
             }
         });
+        setLocationByPlatform(true);
     }
 
     /**
@@ -72,11 +73,11 @@ public class SyncGUI extends javax.swing.JFrame {
         libPathField = new javax.swing.JTextField();
         libPathChooseButton = new javax.swing.JButton();
         jLabel2 = new javax.swing.JLabel();
-        targetPath = new javax.swing.JTextField();
+        targetPathField = new javax.swing.JTextField();
         targetPathChooseButton = new javax.swing.JButton();
         jScrollPane1 = new javax.swing.JScrollPane();
         list = new javax.swing.JList();
-        jButton3 = new javax.swing.JButton();
+        loadDBButton = new javax.swing.JButton();
         jButton4 = new javax.swing.JButton();
         progressBar = new javax.swing.JProgressBar();
 
@@ -101,7 +102,18 @@ public class SyncGUI extends javax.swing.JFrame {
 
         jLabel2.setText("Target Directory");
 
+        targetPathField.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                targetPathFieldActionPerformed(evt);
+            }
+        });
+
         targetPathChooseButton.setText("Choose...");
+        targetPathChooseButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                targetPathChooseButtonActionPerformed(evt);
+            }
+        });
 
         list.setModel(new javax.swing.AbstractListModel() {
             String[] strings = { "Please choose the Path to your iTunes Library XML,", "your target directory and hit \"Load DB\"." };
@@ -110,10 +122,10 @@ public class SyncGUI extends javax.swing.JFrame {
         });
         jScrollPane1.setViewportView(list);
 
-        jButton3.setText("Load DB");
-        jButton3.addActionListener(new java.awt.event.ActionListener() {
+        loadDBButton.setText("Load DB");
+        loadDBButton.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                jButton3ActionPerformed(evt);
+                loadDBButtonActionPerformed(evt);
             }
         });
 
@@ -133,14 +145,14 @@ public class SyncGUI extends javax.swing.JFrame {
                             .addComponent(jLabel2))
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(targetPath)
+                            .addComponent(targetPathField)
                             .addComponent(libPathField))
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addComponent(libPathChooseButton, javax.swing.GroupLayout.Alignment.TRAILING)
                             .addComponent(targetPathChooseButton, javax.swing.GroupLayout.Alignment.TRAILING)))
                     .addGroup(layout.createSequentialGroup()
-                        .addComponent(jButton3)
+                        .addComponent(loadDBButton)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                         .addComponent(progressBar, javax.swing.GroupLayout.DEFAULT_SIZE, 331, Short.MAX_VALUE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
@@ -158,14 +170,14 @@ public class SyncGUI extends javax.swing.JFrame {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(jLabel2)
-                    .addComponent(targetPath, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(targetPathField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(targetPathChooseButton))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 493, Short.MAX_VALUE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
                     .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                        .addComponent(jButton3, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(loadDBButton, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                         .addComponent(jButton4, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                     .addComponent(progressBar, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addContainerGap())
@@ -180,33 +192,55 @@ public class SyncGUI extends javax.swing.JFrame {
 
     private void libPathChooseButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_libPathChooseButtonActionPerformed
         File home = new File(System.getProperty("user.home"));
-                File tunes = new File(home.toString() + "/Music/iTunes/");
-                if (tunes.exists()) {
-                    home = tunes;
-                }
-                JFileChooser jfc = new JFileChooser(home) {
-                    @Override
-                    public boolean accept(File f) {
-                        return f.isDirectory() || f.getName().endsWith(".xml");
-                    }
-                };
-                jfc.showOpenDialog(this);
-                File f = jfc.getSelectedFile();
-                if (f != null) {
-                    libPathField.setText(f.getAbsolutePath());
-                    Main.instance().props.setProperty("lib.xmlfile", f.getAbsolutePath());
-                    Main.instance().props.setProperty("lib.basepath", f.getParent());
-                } else {
-                    JOptionPane.showMessageDialog(this, "You did not select anything! Why would you do that to me?");
-                }
+        File tunes = new File(home.toString() + "/Music/iTunes/");
+        if (tunes.exists()) {
+            home = tunes;
+        }
+        JFileChooser jfc = new JFileChooser(home) {
+            @Override
+            public boolean accept(File f) {
+                return f.isDirectory() || f.getName().endsWith(".xml");
+            }
+        };
+        jfc.showOpenDialog(this);
+        File f = jfc.getSelectedFile();
+        if (f != null) {
+            libPathField.setText(f.getAbsolutePath());
+            Main.instance().props.setProperty("lib.xmlfile", f.getAbsolutePath());
+            Main.instance().props.setProperty("lib.basepath", f.getParent());
+        } else {
+            JOptionPane.showMessageDialog(this, "You did not select anything! Why would you do that to me?");
+        }
     }//GEN-LAST:event_libPathChooseButtonActionPerformed
 
-    private void jButton3ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton3ActionPerformed
+    private void loadDBButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_loadDBButtonActionPerformed
         tunesMan.loadLibrary();
-    }//GEN-LAST:event_jButton3ActionPerformed
+    }//GEN-LAST:event_loadDBButtonActionPerformed
+
+    private void targetPathChooseButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_targetPathChooseButtonActionPerformed
+        File home = new File("/");
+        JFileChooser jfc = new JFileChooser(home) {
+            @Override
+            public boolean accept(File f) {
+                return f.isDirectory();
+            }
+        };
+        jfc.setApproveButtonText("Select Folder");
+        jfc.showOpenDialog(this);
+        File f = jfc.getSelectedFile();
+        if (f != null) {
+            libPathField.setText(f.getAbsolutePath());
+            Main.instance().props.setProperty("lib.targetpath", f.getAbsolutePath());
+        } else {
+            JOptionPane.showMessageDialog(this, "You did not select anything! Why would you do that to me?");
+        }
+    }//GEN-LAST:event_targetPathChooseButtonActionPerformed
+
+    private void targetPathFieldActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_targetPathFieldActionPerformed
+        Main.instance().props.setProperty("lib.targetpath", targetPathField.getText());
+    }//GEN-LAST:event_targetPathFieldActionPerformed
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
-    private javax.swing.JButton jButton3;
     private javax.swing.JButton jButton4;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel2;
@@ -214,8 +248,9 @@ public class SyncGUI extends javax.swing.JFrame {
     private javax.swing.JButton libPathChooseButton;
     private javax.swing.JTextField libPathField;
     javax.swing.JList list;
+    private javax.swing.JButton loadDBButton;
     javax.swing.JProgressBar progressBar;
-    private javax.swing.JTextField targetPath;
     private javax.swing.JButton targetPathChooseButton;
+    private javax.swing.JTextField targetPathField;
     // End of variables declaration//GEN-END:variables
 }

@@ -5,10 +5,13 @@
 package net.q1cc.cfs.tusync;
 
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -30,15 +33,19 @@ import xmlwise.XmlParseException;
  * @author cfstras
  */
 public class TunesManager {
-
+    
     private Main main;
     public ArrayList<Playlist> playlists;
-    public HashMap<Integer,Title> titles;
+    public HashMap<Integer, Title> titles;
     private ReCheckThread reCheckThread;
-    
+    private HashSet<Title> titlesToSync;
+    public String baseFolder;
     TunesModel libModel;
     public boolean recheck;
-    long targetSize = 64*1000*1000*1000L;
+    boolean checkingSize;
+    boolean loadingLib;
+    boolean syncingLib;
+    long targetSize = 64 * 1000 * 1000 * 1000L;
 
     public TunesManager() {
         main = Main.instance();
@@ -48,17 +55,20 @@ public class TunesManager {
         reCheckThread.setPriority(Thread.MIN_PRIORITY);
         reCheckThread.start();
     }
+
     private void initLib() {
         playlists = new ArrayList<Playlist>(32);
         titles = new HashMap<Integer, Title>(256);
     }
 
     public void loadLibrary() {
-        new Thread() {
+        Thread libt = new Thread() {
             @Override
             public void run() {
                 try {
-                    Main.instance().tunesManager.doLoadLibrary();
+                    loadingLib = true;
+                    main.gui.setSyncButton(checkingSize, syncingLib, loadingLib);
+                    doLoadLibrary();
                 } catch (TunesParseException e) {
                     System.out.println("Parse Error: " + e);
                 } catch (XmlParseException e) {
@@ -71,12 +81,33 @@ public class TunesManager {
                     main.gui.progressBar.setIndeterminate(false);
                     main.gui.progressBar.setString("");
                     main.gui.progressBar.setValue(0);
+                    loadingLib = false;
+                    main.gui.setSyncButton(checkingSize, syncingLib, loadingLib);
                 }
             }
-        }.start();
+        };
+        libt.setPriority((Thread.MIN_PRIORITY+Thread.MAX_PRIORITY)/2);
+        libt.start();
     }
 
-    public void doLoadLibrary() throws XmlParseException, IOException, TunesParseException {
+    public void syncLibrary() {
+        Thread synt = new Thread() {
+            @Override
+            public void run() {
+                syncingLib=true;
+                main.gui.setSyncButton(checkingSize, syncingLib, loadingLib);
+                main.gui.setListEnabled(false);
+                doSyncLibrary();
+                syncingLib=false;
+                main.gui.setSyncButton(checkingSize, syncingLib, loadingLib);
+                main.gui.setListEnabled(true);
+            }
+        };
+        synt.setPriority((Thread.MIN_PRIORITY+Thread.MAX_PRIORITY)/2);
+        synt.start();
+    }
+
+    private void doLoadLibrary() throws XmlParseException, IOException, TunesParseException {
         initLib();
         main.gui.progressBar.setString("Loading Library...");
         main.gui.progressBar.setIndeterminate(true);
@@ -100,16 +131,17 @@ public class TunesManager {
             System.out.println(e.getKey() + ": " + e.getValue().getClass());
         }
 
+        baseFolder = new File(Title.decodeLocation(lib.get("Music Folder").toString())).getAbsolutePath().concat(File.separator);
+        Title.baseFolder = baseFolder;
+        
         loadTracks(lib);
         loadPlaylists(lib);
         main.gui.list.setModel(libModel);
         libModel.fireUpdate();
         //main.gui.tree.expandRow(1);
         //TODO serialize
-        
-        System.out.println("Fin.");
     }
-    
+
     void loadTracks(Map<String, Object> lib) throws TunesParseException {
         Object tr = lib.remove("Tracks");
         HashMap<String, HashMap> tracks = null;
@@ -120,51 +152,51 @@ public class TunesManager {
         if (tracks == null) {
             throw new TunesParseException("no tracks");
         }
-        
+
         int numTracks = tracks.size();
-        int tracksPerProgress = numTracks/100;
-        int num=0;
+        int tracksPerProgress = numTracks / 100;
+        int num = 0;
         int progress = 0;
         main.gui.progressBar.setMinimum(0);
         main.gui.progressBar.setMaximum(200);
         main.gui.progressBar.setValue(0);
         main.gui.progressBar.setString("reading tracks");
         main.gui.progressBar.setIndeterminate(false);
-        
+
         Iterator<HashMap> it = tracks.values().iterator();
-        while(it.hasNext()) {
-            HashMap<String,Object> obj = it.next();
+        while (it.hasNext()) {
+            HashMap<String, Object> obj = it.next();
             it.remove();
-            if(!obj.containsKey("Track ID")) {
+            if (!obj.containsKey("Track ID")) {
                 continue;
             }
             int id = (Integer) obj.get("Track ID");
             Title title = new Title(id);
-            
-            for(Entry<String,Object> e : obj.entrySet()) {
+
+            for (Entry<String, Object> e : obj.entrySet()) {
                 int ind = Title.getAttInd(e.getKey());
-                if(ind==-1) {
-                    System.out.println("Error: no row named "+e.getKey());
+                if (ind == -1) {
+                    System.out.println("Error: no row named " + e.getKey());
                     continue;
                 }
                 Object val = e.getValue();
-                if(val instanceof String) {
-                    val = ((String)val).intern();
+                if (val instanceof String) {
+                    val = ((String) val).intern();
                 }
                 title.attribs[ind] = val;
             }
             titles.put(id, title);
             num++;
-            if(num%tracksPerProgress==0 || num==numTracks) {
+            if (num % tracksPerProgress == 0 || num == numTracks) {
                 main.gui.progressBar.setValue(++progress);
-                main.gui.progressBar.setString("reading tracks: "+num+" / "+numTracks);
+                main.gui.progressBar.setString("reading tracks: " + num + " / " + numTracks);
             }
-            
+
         }
         //tracks loaded.
-        
+
     }
-    
+
     void loadPlaylists(Map<String, Object> lib) throws TunesParseException {
         //playlists!
         Object pl = lib.remove("Playlists");
@@ -176,135 +208,228 @@ public class TunesManager {
         if (lists == null) {
             throw new TunesParseException("no playlists");
         }
-        
+
         int numLists = lists.size();
-        int listsPerProgress = numLists/100;
-        int num=0;
+        int listsPerProgress = numLists / 100;
+        int num = 0;
         int progress = 100;
         main.gui.progressBar.setMinimum(0);
         main.gui.progressBar.setMaximum(200);
         main.gui.progressBar.setValue(100);
         main.gui.progressBar.setString("reading playlists");
         main.gui.progressBar.setIndeterminate(false);
-        
+
         Iterator<HashMap> it = lists.iterator();
-        while(it.hasNext()) {
+        while (it.hasNext()) {
             HashMap list = it.next();
             it.remove();
-            Playlist playlist = new Playlist(list.get("Name").toString(), (Integer)list.get("Playlist ID"));
+            Playlist playlist = new Playlist(list.get("Name").toString(), (Integer) list.get("Playlist ID"));
+            playlist.persID = list.get("Playlist Persistent ID").toString();
+            Object ppid = list.get("Parent Persistent ID");
+            if(ppid!=null) {
+                playlist.parentPersID = ppid.toString();
+            }
             ArrayList<HashMap> entries = (ArrayList) list.get("Playlist Items");
-            if(entries == null) {
+            if (entries == null) {
                 //no entries.
                 continue;
             }
             Iterator<HashMap> listIt = entries.iterator();
-            while(listIt.hasNext()) {
-                HashMap<String,Integer> entry = listIt.next();
+            while (listIt.hasNext()) {
+                HashMap<String, Integer> entry = listIt.next();
                 playlist.addTitle(titles.get((Integer)entry.get("Track ID")));
             }
             playlists.add(playlist);
-            System.out.println("Playlist "+playlist.title+": "+playlist.tracks.size()+" tracks.");
+            //System.out.println("Playlist "+playlist.title+": "+playlist.tracks.size()+" tracks.");
             num++;
             if (num % listsPerProgress == 0 || num == numLists) {
                 main.gui.progressBar.setValue(++progress);
                 main.gui.progressBar.setString("reading playlists: " + num + " / " + numLists);
             }
         }
+        //TODO sort playlists
         main.gui.progressBar.setValue(0);
         main.gui.progressBar.setString("");
         //playlists read. yay.
     }
-    
-    public long getPlaylistSize(Collection<Title> tracks, ArrayList<Long> ignore, long sizeBefore) {
+
+    public long getPlaylistSize(Collection<Title> tracks, HashSet<Title> ignore, long sizeBefore) {
         int attribID = Title.getAttInd("Size");
         long size = 0;
-        for(Title t : tracks) {
-            if(ignore.contains(t.id)) {
+        for (Title t : tracks) {
+            if (ignore.contains(t)) {
                 continue;
             }
             t.selected = true;
             size += t.getSizeOnDisk();
-            ignore.add(t.id);
-            setProgressSize(targetSize, size+sizeBefore, false);
+            ignore.add(t);
+            setProgressSize(targetSize, size + sizeBefore, false);
         }
         return size;
     }
-    
-    long lastSize = 0;
-    public void reCheck() {
-        recheck=true;
-        reCheckThread.interrupt();
+
+    private void doSyncLibrary() {
+        String targetPath = main.props.getProperty("lib.targetpath");
+        if(targetPath == null) {
+            JOptionPane.showMessageDialog(main.gui, "No target path selected! Please select one.", "No target!", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        File targetPathFile = new File(targetPath);
+        targetPathFile.mkdirs();
+        if(!targetPathFile.canRead()) {
+            JOptionPane.showMessageDialog(main.gui, "Can't read target path", "Read error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        if(!targetPathFile.canWrite()) {
+            JOptionPane.showMessageDialog(main.gui, "Can't write target path", "Write error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        
+        syncPlaylists(targetPathFile);
+        syncTitles(targetPathFile);
     }
     
+    private void syncPlaylists(File targetPathFile) {
+        Iterator<Playlist> plIt = playlists.iterator();
+        titlesToSync = new HashSet<Title>(256);
+        while(plIt.hasNext()) {
+            PrintWriter out = null;
+            try {
+                Playlist playlist = plIt.next();
+                if(!playlist.selected) {
+                    continue;
+                }
+                String filename = playlist.title.replaceAll("[^\\w \\-]", "-").concat(".m3u");
+                File playlistFile = new File(targetPathFile.getAbsolutePath()+File.separator+filename);
+                System.out.println("Playlist "+playlist.title+" --> "+filename);
+                playlistFile.createNewFile();
+                out = new PrintWriter(new FileWriter(playlistFile, false));
+                
+                out.println("#EXTM3U");
+                Iterator<Title> titleIt = playlist.tracks.values().iterator();
+                while(titleIt.hasNext()) {
+                    Title t = titleIt.next();
+                    titlesToSync.add(t);
+                    out.print("#EXTINF:");
+                    out.print(t.getLength()/100);
+                    out.print(", ");
+                    out.print(t.attribs[Title.getAttInd("Artist")]);
+                    out.print(" - ");
+                    out.println(t.attribs[Title.getAttInd("Name")]);
+                    out.println(Title.getPathRelative(new File(t.file.toString()).getAbsolutePath()));
+                }
+                
+                out.println();
+                out.flush();
+                out.close();
+            } catch (IOException ex) {
+                ex.printStackTrace();
+            } finally {
+                if(out!=null) {
+                    out.flush();
+                    out.close();
+                }
+            }
+            
+        }
+        
+    }
+    
+    private void syncTitles(File targetPathFile) {
+        //TODO
+    }
+    
+    long lastSize = 0;
+
+    public void reCheck() {
+        recheck = true;
+        main.gui.setSyncButton(true, syncingLib, loadingLib);
+        reCheckThread.interrupt();
+    }
+
     protected void doReCheck() {
-        recheck=false;
+        recheck = false;
+        checkingSize = true;
+        main.gui.setSyncButton(checkingSize, syncingLib, loadingLib);
         lastSize = 0;
         long size = 0;
-        ArrayList<Long> ignore = new ArrayList<Long>(256);
-        for(Playlist p : playlists) {
-            if(p.selected) {
-                size += getPlaylistSize(p.tracks.values(),ignore, size);
+        HashSet<Title> ignore = new HashSet<Title>(256);
+        for (Playlist p : playlists) {
+            if (p.selected) {
+                size += getPlaylistSize(p.tracks.values(), ignore, size);
             }
         }
         setProgressSize(targetSize, size, true);
+        checkingSize = false;
+        main.gui.setSyncButton(checkingSize, syncingLib, loadingLib);
     }
-    
     static final String progressIndicator = "|/-\\";
+
     private void setProgressSize(long targetSize, long size, boolean finished) {
-        if(!finished && size-lastSize < 1024) {
+        if (!finished && size - lastSize < 1024) {
             return;
         }
-        long it = System.currentTimeMillis()/200;
+        long it = System.currentTimeMillis() / 200;
         it %= progressIndicator.length();
-        
-        long sizeDiv = targetSize/500;
-        main.gui.progressBar.setMaximum((int)(targetSize/sizeDiv));
-        main.gui.progressBar.setValue((int)(size/sizeDiv));
-        main.gui.progressBar.setString(humanize(size)+" / "+humanize(targetSize)+
-                ((!finished)?" "+progressIndicator.charAt((int)it):" occupied."));
+
+        long sizeDiv = targetSize / 500;
+        main.gui.progressBar.setMaximum((int) (targetSize / sizeDiv));
+        main.gui.progressBar.setValue((int) (size / sizeDiv));
+        main.gui.progressBar.setString(humanize(size) + " / " + humanize(targetSize)
+                + ((!finished) ? " " + progressIndicator.charAt((int) it) : " occupied."));
         main.gui.progressBar.setStringPainted(true);
         lastSize = size;
     }
-    
     private static final String siPrefixes = " KMGTPE";
+
     private static String humanize(long bytes) {
         int prefixID = 0;
         double divided = bytes;
-        while(divided >= 1000 && prefixID < siPrefixes.length()) {
+        while (divided >= 1000 && prefixID < siPrefixes.length()) {
             divided /= 1024;
             prefixID++;
         }
-        return (Math.floor(divided*100)/100)+" "+siPrefixes.charAt(prefixID)+'B';
+        return (Math.floor(divided * 100) / 100) + " " + siPrefixes.charAt(prefixID) + 'B';
     }
-    
+
+    void toggleSelected(Playlist playlist) {
+        if (syncingLib) {
+            return;
+        }
+        playlist.setSelected(!playlist.selected);
+        Main.instance().tunesManager.reCheck();
+    }
+
     private class ReCheckThread extends Thread {
+
         boolean live = true;
+
         @Override
         public void run() {
             setName("ReCheckThread");
             while (live) {
-                if(TunesManager.this.recheck) {
+                if (TunesManager.this.recheck) {
                     TunesManager.this.doReCheck();
                 } else {
                     synchronized (this) {
                         try {
                             wait(5000);
-                        } catch (InterruptedException ex) {}
+                        } catch (InterruptedException ex) {
+                        }
                     }
                 }
             }
         }
     }
 
-    private class TunesModel implements TreeModel,ListModel {
-        
+    private class TunesModel implements TreeModel, ListModel {
+
         public String root = "Music";
         String playlistsNode = "Playlists";
         public ArrayList<TreeModelListener> treeeners = new ArrayList<TreeModelListener>(2);
         public ArrayList<ListDataListener> listeners = new ArrayList<ListDataListener>(2);
-                
+
         public TunesModel() {
-            
         }
 
         @Override
@@ -314,7 +439,7 @@ public class TunesManager {
 
         @Override
         public Object getChild(Object parent, int index) {
-            if(parent == root) {
+            if (parent == root) {
                 switch (index) {
                     case 0:
                         return "Playlists";
@@ -323,9 +448,9 @@ public class TunesManager {
                     default:
                         return null;
                 }
-            } else if(parent == playlistsNode) {
+            } else if (parent == playlistsNode) {
                 return TunesManager.this.playlists.get(index);
-            } else if(playlists.contains(parent)) {
+            } else if (playlists.contains(parent)) {
                 //return one title
                 return null;
             }
@@ -334,11 +459,11 @@ public class TunesManager {
 
         @Override
         public int getChildCount(Object parent) {
-            if(parent == root) {
+            if (parent == root) {
                 return 1;
-            } else if(parent == playlistsNode) {
+            } else if (parent == playlistsNode) {
                 return TunesManager.this.playlists.size();
-            } else if(TunesManager.this.playlists.contains(parent)){
+            } else if (TunesManager.this.playlists.contains(parent)) {
                 return 0;
                 //return ((Playlist)parent).tracks.size();
             }
@@ -347,7 +472,7 @@ public class TunesManager {
 
         @Override
         public boolean isLeaf(Object node) {
-            if(node == root || node == playlistsNode) {
+            if (node == root || node == playlistsNode) {
                 return false;
             } else {
                 return true;
@@ -374,14 +499,14 @@ public class TunesManager {
         public void removeTreeModelListener(TreeModelListener l) {
             treeeners.remove(l);
         }
-        
+
         public void fireUpdate() {
             TreeModelEvent t = new TreeModelEvent(root, new TreePath(root));
-            for(TreeModelListener l : treeeners) {
+            for (TreeModelListener l : treeeners) {
                 l.treeStructureChanged(t);
             }
             ListDataEvent e = new ListDataEvent(TunesManager.this, ListDataEvent.INTERVAL_ADDED, 0, getSize());
-            for(ListDataListener l : listeners) {
+            for (ListDataListener l : listeners) {
                 l.contentsChanged(e);
             }
         }
@@ -393,7 +518,7 @@ public class TunesManager {
 
         @Override
         public Object getElementAt(int index) {
-            return  TunesManager.this.playlists.get(index);
+            return TunesManager.this.playlists.get(index);
         }
 
         @Override
@@ -405,6 +530,5 @@ public class TunesManager {
         public void removeListDataListener(ListDataListener l) {
             listeners.remove(l);
         }
-        
     }
 }

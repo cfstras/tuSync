@@ -37,7 +37,7 @@ public class SyncGUI extends javax.swing.JFrame {
                 if (index != -1) {
                     Playlist checkbox = (Playlist) list.getModel().getElementAt(
                             index);
-                    checkbox.setSelected(!checkbox.isSelected());
+                    tunesMan.toggleSelected(checkbox);
                     list.repaint();
                 }
             }
@@ -78,12 +78,11 @@ public class SyncGUI extends javax.swing.JFrame {
         jScrollPane1 = new javax.swing.JScrollPane();
         list = new javax.swing.JList();
         loadDBButton = new javax.swing.JButton();
-        jButton4 = new javax.swing.JButton();
+        syncButton = new javax.swing.JButton();
         progressBar = new javax.swing.JProgressBar();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
         setTitle("tuSync");
-        setPreferredSize(new java.awt.Dimension(500, 600));
 
         jLabel1.setText("iTunes Library XML");
 
@@ -129,7 +128,12 @@ public class SyncGUI extends javax.swing.JFrame {
             }
         });
 
-        jButton4.setText("Sync!");
+        syncButton.setText("Sync!");
+        syncButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                syncButtonActionPerformed(evt);
+            }
+        });
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
@@ -156,7 +160,7 @@ public class SyncGUI extends javax.swing.JFrame {
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                         .addComponent(progressBar, javax.swing.GroupLayout.DEFAULT_SIZE, 331, Short.MAX_VALUE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                        .addComponent(jButton4)))
+                        .addComponent(syncButton)))
                 .addContainerGap())
         );
         layout.setVerticalGroup(
@@ -178,7 +182,7 @@ public class SyncGUI extends javax.swing.JFrame {
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
                     .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                         .addComponent(loadDBButton, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addComponent(jButton4, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                        .addComponent(syncButton, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                     .addComponent(progressBar, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addContainerGap())
         );
@@ -189,7 +193,7 @@ public class SyncGUI extends javax.swing.JFrame {
     private void libPathFieldActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_libPathFieldActionPerformed
         Main.instance().props.setProperty("lib.xmlfile", libPathField.getText());
     }//GEN-LAST:event_libPathFieldActionPerformed
-
+    
     private void libPathChooseButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_libPathChooseButtonActionPerformed
         File home = new File(System.getProperty("user.home"));
         File tunes = new File(home.toString() + "/Music/iTunes/");
@@ -225,6 +229,7 @@ public class SyncGUI extends javax.swing.JFrame {
                 return f.isDirectory();
             }
         };
+        jfc.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
         jfc.setApproveButtonText("Select Folder");
         jfc.showOpenDialog(this);
         File f = jfc.getSelectedFile();
@@ -240,8 +245,19 @@ public class SyncGUI extends javax.swing.JFrame {
         Main.instance().props.setProperty("lib.targetpath", targetPathField.getText());
     }//GEN-LAST:event_targetPathFieldActionPerformed
 
+    private void syncButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_syncButtonActionPerformed
+        tunesMan.syncLibrary();
+    }//GEN-LAST:event_syncButtonActionPerformed
+    
+    public void setSyncButton(boolean checking, boolean syncing, boolean loading) {
+        syncButton.setEnabled(!checking && !syncing && !loading);
+    }
+    
+    public void setListEnabled(boolean enable) {
+        list.setEnabled(enable);
+    }
+    
     // Variables declaration - do not modify//GEN-BEGIN:variables
-    private javax.swing.JButton jButton4;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel2;
     private javax.swing.JScrollPane jScrollPane1;
@@ -250,6 +266,7 @@ public class SyncGUI extends javax.swing.JFrame {
     javax.swing.JList list;
     private javax.swing.JButton loadDBButton;
     javax.swing.JProgressBar progressBar;
+    javax.swing.JButton syncButton;
     private javax.swing.JButton targetPathChooseButton;
     private javax.swing.JTextField targetPathField;
     // End of variables declaration//GEN-END:variables

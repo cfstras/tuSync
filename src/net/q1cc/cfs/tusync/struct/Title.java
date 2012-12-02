@@ -5,6 +5,7 @@
 package net.q1cc.cfs.tusync.struct;
 
 import java.io.File;
+import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -52,6 +53,7 @@ public class Title {
     public boolean selected;
     public File file;
     public volatile boolean fileChecked;
+    public static String baseFolder;
     
     public Title(long id) {
         this.id = id;
@@ -84,16 +86,14 @@ public class Title {
             return 0;
         }
         
-        String location = (String)loc; 
-        if(location.startsWith("file://localhost/")) {
-            location = location.substring("file://localhost/".length());
-        }
-        location = location.replaceAll("\\+","%2b");
+        
+        
         File f;
         try {
-            f = new File(URLDecoder.decode(location,"UTF-8"));
-        } catch (Exception ex) {
-            System.out.println(location);
+            String location = decodeLocation((String)loc); 
+            f = new File(location);
+        } catch (UnsupportedEncodingException ex) {
+            System.out.println(loc);
             ex.printStackTrace();
             attribs[getAttInd("Size")] = 0L;
             fileChecked = true;
@@ -120,6 +120,19 @@ public class Title {
         return size;
     }
     
+    public long getLength() {
+        Object l = attribs[getAttInd("Total Time")];
+        if(l instanceof Integer) {
+            return (Integer)l;
+        }
+        if(l instanceof Long) {
+            return (Long)l;
+        }
+        System.out.println("time: "+l+" for "+toString());
+        
+        return -1;
+    }
+    
     @Override
     public String toString() {
         StringBuilder b = new StringBuilder();
@@ -129,5 +142,21 @@ public class Title {
         }
         b.append("]");
         return b.toString();
+    }
+
+    public static String decodeLocation(String location) throws UnsupportedEncodingException {
+        if(location.startsWith("file://localhost/")) {
+            location = location.substring("file://localhost/".length());
+        }
+        return URLDecoder.decode(location.replaceAll("\\+","%2b"),"UTF-8");
+    }
+    
+    public static String getPathRelative(String pathAbsolute) {
+        String with = pathAbsolute;
+        String without = with.replace(baseFolder, "");
+        if(without.equals(with)) {
+            System.out.println("relativePath: "+with+" does not contain "+baseFolder);
+        }
+        return without;
     }
 }

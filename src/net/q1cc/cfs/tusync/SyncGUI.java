@@ -30,6 +30,9 @@ public class SyncGUI extends javax.swing.JFrame {
     public SyncGUI() {
         initComponents();
         
+        targetPathField.setText(Main.instance().props.get("lib.targetpath", null));
+        libPathField.setText(Main.instance().props.get("lib.basepath",null));
+        
         list.addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
@@ -191,7 +194,7 @@ public class SyncGUI extends javax.swing.JFrame {
     }// </editor-fold>//GEN-END:initComponents
 
     private void libPathFieldActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_libPathFieldActionPerformed
-        Main.instance().props.setProperty("lib.xmlfile", libPathField.getText());
+        Main.instance().props.put("lib.xmlfile", libPathField.getText());
     }//GEN-LAST:event_libPathFieldActionPerformed
     
     private void libPathChooseButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_libPathChooseButtonActionPerformed
@@ -210,8 +213,8 @@ public class SyncGUI extends javax.swing.JFrame {
         File f = jfc.getSelectedFile();
         if (f != null) {
             libPathField.setText(f.getAbsolutePath());
-            Main.instance().props.setProperty("lib.xmlfile", f.getAbsolutePath());
-            Main.instance().props.setProperty("lib.basepath", f.getParent());
+            Main.instance().props.put("lib.xmlfile", f.getAbsolutePath());
+            Main.instance().props.put("lib.basepath", f.getParent());
         } else {
             JOptionPane.showMessageDialog(this, "You did not select anything! Why would you do that to me?");
         }
@@ -235,14 +238,14 @@ public class SyncGUI extends javax.swing.JFrame {
         File f = jfc.getSelectedFile();
         if (f != null) {
             libPathField.setText(f.getAbsolutePath());
-            Main.instance().props.setProperty("lib.targetpath", f.getAbsolutePath());
+            Main.instance().props.put("lib.targetpath", f.getAbsolutePath());
         } else {
             JOptionPane.showMessageDialog(this, "You did not select anything! Why would you do that to me?");
         }
     }//GEN-LAST:event_targetPathChooseButtonActionPerformed
 
     private void targetPathFieldActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_targetPathFieldActionPerformed
-        Main.instance().props.setProperty("lib.targetpath", targetPathField.getText());
+        Main.instance().props.put("lib.targetpath", targetPathField.getText());
     }//GEN-LAST:event_targetPathFieldActionPerformed
 
     private void syncButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_syncButtonActionPerformed

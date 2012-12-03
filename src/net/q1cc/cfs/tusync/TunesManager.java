@@ -86,6 +86,7 @@ public class TunesManager {
                 }
             }
         };
+        libt.setName("LoadLibThread");
         libt.setPriority((Thread.MIN_PRIORITY+Thread.MAX_PRIORITY)/2);
         libt.start();
     }
@@ -103,6 +104,7 @@ public class TunesManager {
                 main.gui.setListEnabled(true);
             }
         };
+        synt.setName("SyncThread");
         synt.setPriority((Thread.MIN_PRIORITY+Thread.MAX_PRIORITY)/2);
         synt.start();
     }
@@ -112,10 +114,9 @@ public class TunesManager {
         main.gui.progressBar.setString("Loading Library...");
         main.gui.progressBar.setIndeterminate(true);
 
-        String path = main.props.getProperty("lib.basepath");
+        String path = main.props.get("lib.basepath", null);
         if (path == null) {
             JOptionPane.showMessageDialog(main.gui, "Please select the path to your iTunes library first.");
-            //TODO open dialog
             return;
         }
         File tunesFolder = new File(path);
@@ -138,7 +139,8 @@ public class TunesManager {
         loadPlaylists(lib);
         main.gui.list.setModel(libModel);
         libModel.fireUpdate();
-        //main.gui.tree.expandRow(1);
+        
+        System.gc();
         //TODO serialize
     }
 
@@ -269,7 +271,7 @@ public class TunesManager {
     }
 
     private void doSyncLibrary() {
-        String targetPath = main.props.getProperty("lib.targetpath");
+        String targetPath = main.props.get("lib.targetpath", null);
         if(targetPath == null) {
             JOptionPane.showMessageDialog(main.gui, "No target path selected! Please select one.", "No target!", JOptionPane.ERROR_MESSAGE);
             return;

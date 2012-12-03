@@ -2,6 +2,8 @@ package net.q1cc.cfs.tusync;
 
 import java.awt.EventQueue;
 import java.util.Properties;
+import java.util.prefs.BackingStoreException;
+import java.util.prefs.Preferences;
 import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
 
@@ -10,28 +12,38 @@ import javax.swing.UnsupportedLookAndFeelException;
  * @author cfstras
  */
 public class Main {
+
     private static Main inst;
-    
     public SyncGUI gui;
     public TunesManager tunesManager;
-    public Properties props;
-    
-    private Main(){
-       props = new Properties();
-        //TODO load props
-        
+    public Preferences props;
+
+    private Main() {
+        props = Preferences.userNodeForPackage(this.getClass());
+        Runtime.getRuntime().addShutdownHook(new Thread() {
+            @Override public void run() {
+                try {
+                    props.sync();
+                } catch (BackingStoreException ex) {
+                    ex.printStackTrace();
+                }
+            }
+        });
     }
+
     private void init() {
         setPLAF();
-	gui = new SyncGUI();
+        gui = new SyncGUI();
         tunesManager = new TunesManager();
-        gui.tunesMan=tunesManager;
+        gui.tunesMan = tunesManager;
         gui.setVisible(true);
     }
+
     public static Main instance() {
         return inst;
     }
-    public static void main(String[] args){
+
+    public static void main(String[] args) {
         inst = new Main();
         inst.init();
     }

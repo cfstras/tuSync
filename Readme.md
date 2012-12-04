@@ -1,26 +1,30 @@
 tuSync
 ======
 
-i was looking for a solution to sync my iTunes library to my Android device for a long time, so i made this.
+###Why?
+i was looking for a solution to sync my _iTunes_ library to my _Android_ device for a long time.
 
-
-tuSync is aimed to take your music library, have you select any number of playlists from it,
-and then sync every song contained in them into another folder (or your mobile device).
+###Pros
+_tuSync_ is aimed to take your music library, have you select any number of playlists from it,
+and then sync every title contained in them into a chosen folder (or your _mobile device_).
 the files are still neatly organized into folders and don't have any duplicates.
 
-also, your playlists are exported into .m3u files, which get copied to the destination folder.
+also, your playlists are exported into _.m3u_ files, which get copied to the destination folder.
 
-currently, only iTunes Libraries are supported, but that should change soon.
+###Cons
+currently, only _iTunes_ libraries are supported, but that should change soon.
+
+if your library has duplicates, they will most likely be synced, too. will fix that once i get a report :D
 
 
-License
--------
-tuSync is currently published under the GPLv3.
+###License
+
+_tuSync_ is currently published under the GPLv3.
 http://www.gnu.org/licenses/gpl
 
 
-Xmlwise, a nice helper for PList files which is used in tuSync, located here: http://code.google.com/p/xmlwise/
+_Xmlwise_, a nice helper for PList files which is used in tuSync, located here: http://code.google.com/p/xmlwise/
 is licensed under the MIT license.
 http://opensource.org/licenses/mit-license.php
-props to Christoffer Lernö for writing that thing.
+props to Christoffer LernÃ¶ for writing that thing.
 

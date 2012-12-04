@@ -1,7 +1,3 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
 package net.q1cc.cfs.tusync;
 
 import java.awt.Component;
@@ -32,6 +28,8 @@ public class SyncGUI extends javax.swing.JFrame {
         
         targetPathField.setText(Main.instance().props.get("lib.targetpath", null));
         libPathField.setText(Main.instance().props.get("lib.basepath",null));
+        deleteOtherPlaylistsCheckbox.setSelected(Main.instance().props.getBoolean("sync.deleteotherplaylists", false));
+        deleteOtherTitlesCheckbox.setSelected(Main.instance().props.getBoolean("sync.deleteothertitles", false));
         
         list.addMouseListener(new MouseAdapter() {
             @Override
@@ -83,6 +81,8 @@ public class SyncGUI extends javax.swing.JFrame {
         loadDBButton = new javax.swing.JButton();
         syncButton = new javax.swing.JButton();
         progressBar = new javax.swing.JProgressBar();
+        deleteOtherPlaylistsCheckbox = new javax.swing.JCheckBox();
+        deleteOtherTitlesCheckbox = new javax.swing.JCheckBox();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
         setTitle("tuSync");
@@ -138,6 +138,20 @@ public class SyncGUI extends javax.swing.JFrame {
             }
         });
 
+        deleteOtherPlaylistsCheckbox.setText("Delete other playlists from destination");
+        deleteOtherPlaylistsCheckbox.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                deleteOtherPlaylistsCheckboxActionPerformed(evt);
+            }
+        });
+
+        deleteOtherTitlesCheckbox.setText("Delete other titles from destination");
+        deleteOtherTitlesCheckbox.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                deleteOtherTitlesCheckboxActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
@@ -161,9 +175,13 @@ public class SyncGUI extends javax.swing.JFrame {
                     .addGroup(layout.createSequentialGroup()
                         .addComponent(loadDBButton)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                        .addComponent(progressBar, javax.swing.GroupLayout.DEFAULT_SIZE, 331, Short.MAX_VALUE)
+                        .addComponent(progressBar, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                        .addComponent(syncButton)))
+                        .addComponent(syncButton))
+                    .addGroup(layout.createSequentialGroup()
+                        .addComponent(deleteOtherPlaylistsCheckbox)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(deleteOtherTitlesCheckbox)))
                 .addContainerGap())
         );
         layout.setVerticalGroup(
@@ -180,7 +198,11 @@ public class SyncGUI extends javax.swing.JFrame {
                     .addComponent(targetPathField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(targetPathChooseButton))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 493, Short.MAX_VALUE)
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 472, Short.MAX_VALUE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(deleteOtherPlaylistsCheckbox)
+                    .addComponent(deleteOtherTitlesCheckbox))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
                     .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
@@ -237,7 +259,7 @@ public class SyncGUI extends javax.swing.JFrame {
         jfc.showOpenDialog(this);
         File f = jfc.getSelectedFile();
         if (f != null) {
-            libPathField.setText(f.getAbsolutePath());
+            targetPathField.setText(f.getAbsolutePath());
             Main.instance().props.put("lib.targetpath", f.getAbsolutePath());
         } else {
             JOptionPane.showMessageDialog(this, "You did not select anything! Why would you do that to me?");
@@ -251,6 +273,32 @@ public class SyncGUI extends javax.swing.JFrame {
     private void syncButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_syncButtonActionPerformed
         tunesMan.syncLibrary();
     }//GEN-LAST:event_syncButtonActionPerformed
+
+    private void deleteOtherPlaylistsCheckboxActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_deleteOtherPlaylistsCheckboxActionPerformed
+        boolean sel = deleteOtherPlaylistsCheckbox.isSelected();
+        if(sel) {
+            int resp = JOptionPane.showConfirmDialog(this,
+            "Warning: This deletes all m3u files in the destination folder. Do you really want that?",
+            "Warning",JOptionPane.OK_CANCEL_OPTION,JOptionPane.QUESTION_MESSAGE);
+            if(resp == JOptionPane.CLOSED_OPTION || resp == JOptionPane.CANCEL_OPTION) {
+                sel = false;
+            }
+        }
+        Main.instance().props.putBoolean("sync.deleteotherplaylists", sel);
+    }//GEN-LAST:event_deleteOtherPlaylistsCheckboxActionPerformed
+
+    private void deleteOtherTitlesCheckboxActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_deleteOtherTitlesCheckboxActionPerformed
+        boolean sel = deleteOtherTitlesCheckbox.isSelected();
+        if(sel) {
+            int resp = JOptionPane.showConfirmDialog(this,
+            "Warning: This deletes Music, Audiobooks, etc folders in the destination folder. Do you really want that?",
+            "Warning",JOptionPane.OK_CANCEL_OPTION,JOptionPane.QUESTION_MESSAGE);
+            if(resp == JOptionPane.CLOSED_OPTION || resp == JOptionPane.CANCEL_OPTION) {
+                sel = false;
+            }
+        }
+        Main.instance().props.putBoolean("sync.deleteothertitles", sel);
+    }//GEN-LAST:event_deleteOtherTitlesCheckboxActionPerformed
     
     public void setSyncButton(boolean checking, boolean syncing, boolean loading) {
         syncButton.setEnabled(!checking && !syncing && !loading);
@@ -261,6 +309,8 @@ public class SyncGUI extends javax.swing.JFrame {
     }
     
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JCheckBox deleteOtherPlaylistsCheckbox;
+    private javax.swing.JCheckBox deleteOtherTitlesCheckbox;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel2;
     private javax.swing.JScrollPane jScrollPane1;

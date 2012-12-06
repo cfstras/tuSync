@@ -52,7 +52,7 @@
                   </Group>
                   <Group type="102" alignment="0" attributes="0">
                       <Component id="deleteOtherPlaylistsCheckbox" min="-2" max="-2" attributes="0"/>
-                      <EmptySpace type="unrelated" max="32767" attributes="0"/>
+                      <EmptySpace type="unrelated" pref="6" max="32767" attributes="0"/>
                       <Component id="deleteOtherTitlesCheckbox" min="-2" max="-2" attributes="0"/>
                   </Group>
               </Group>
@@ -188,7 +188,7 @@
     </Component>
     <Component class="javax.swing.JCheckBox" name="deleteOtherTitlesCheckbox">
       <Properties>
-        <Property name="text" type="java.lang.String" value="Delete other titles from destination"/>
+        <Property name="text" type="java.lang.String" value="Delete other files from destination"/>
       </Properties>
       <Events>
         <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="deleteOtherTitlesCheckboxActionPerformed"/>

@@ -7,11 +7,14 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.channels.FileChannel;
+import java.nio.file.CopyOption;
 import java.nio.file.FileVisitResult;
 import java.nio.file.FileVisitor;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.nio.file.attribute.FileAttribute;
 import java.text.DateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -373,46 +376,14 @@ public class TunesManager {
         int titlesPerValue = Math.max(1,titlesToSync.size() / 100);
         int value = 10, i = 0, iMax = titlesToSync.size();
         
+        HashSet<Path> filesInTarget = new HashSet<Path>(256);
         if(main.props.getBoolean("sync.deleteothertitles", false)) {
             main.gui.progressBar.setIndeterminate(true);
-            main.gui.progressBar.setString("deleting other stuff...");
-            for( File f: targetPathFile.listFiles()) {
-                String name = f.getName();
-                for(String s : tunesTitleFolders) {
-                    if (s.equals(name)) {
-                        System.out.println("deleting "+f);
-                        try {
-                            //TODO only delete files that are not going to be copied.
-                            Files.walkFileTree(f.toPath(), new FileVisitor() {
-                                @Override
-                                public FileVisitResult preVisitDirectory(Object dir, BasicFileAttributes attrs) throws IOException {
-                                    return FileVisitResult.CONTINUE;
-                                }
-
-                                @Override
-                                public FileVisitResult visitFile(Object file, BasicFileAttributes attrs) throws IOException {
-                                    Files.delete((Path) file);
-                                    return FileVisitResult.CONTINUE;
-                                }
-
-                                @Override
-                                public FileVisitResult visitFileFailed(Object file, IOException exc) throws IOException {
-                                    return FileVisitResult.CONTINUE;
-                                }
-
-                                @Override
-                                public FileVisitResult postVisitDirectory(Object dir, IOException exc) throws IOException {
-                                    Files.delete((Path) dir);
-                                    return FileVisitResult.CONTINUE;
-                                }
-                                
-                            });
-                        } catch (IOException ex) {
-                            ex.printStackTrace();
-                        }
-                        break;
-                    }
-                }
+            main.gui.progressBar.setString("building file list...");
+            try {
+                Files.walkFileTree(targetPathFile.toPath(), new FileLister(filesInTarget));
+            } catch (IOException ex) {
+                ex.printStackTrace();
             }
             main.gui.progressBar.setString("syncing titles...");
             main.gui.progressBar.setIndeterminate(false);
@@ -435,7 +406,9 @@ public class TunesManager {
                 continue;
             }
             try {
-                targetfile.getParentFile().mkdirs();
+                filesInTarget.remove(targetfile.toPath());
+                Files.createDirectories(targetfile.toPath());
+                //targetfile.getParentFile().mkdirs();
                 copyFile(t.file, targetfile);
             } catch (IOException ex) {
                 ex.printStackTrace();
@@ -443,6 +416,23 @@ public class TunesManager {
         }
         main.gui.progressBar.setValue(110);
         main.gui.progressBar.setString("Titles successfully synced!");
+        
+        if(main.props.getBoolean("sync.deleteothertitles", false)) {
+            main.gui.progressBar.setString("Deleting other files...");
+            main.gui.progressBar.setIndeterminate(true);
+            System.out.println("other files deleted:");
+            for(Path t:filesInTarget) { // delete any files remaining in dir
+                System.out.println(t); //TODO delete beforehand, in case we're running low on space
+                try {
+                    Files.delete(t);
+                } catch (IOException ex) {
+                    ex.printStackTrace();
+                }
+            }
+            main.gui.progressBar.setIndeterminate(false);
+            main.gui.progressBar.setString("Titles successfully synced!");
+        }
+        System.out.println("meh.");
     }
     
     public static void copyFile(File sourceFile, File destFile) throws IOException {
@@ -459,20 +449,7 @@ public class TunesManager {
             }
         }
 
-        FileChannel source = null;
-        FileChannel destination = null;
-        try {
-            source = new FileInputStream(sourceFile).getChannel();
-            destination = new FileOutputStream(destFile).getChannel();
-            destination.transferFrom(source, 0, source.size());
-        } finally {
-            if (source != null) {
-                source.close();
-            }
-            if (destination != null) {
-                destination.close();
-            }
-        }
+        Files.copy(sourceFile.toPath(),destFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
     }
     
     long lastSize = 0;
@@ -681,6 +658,83 @@ public class TunesManager {
         @Override
         public void removeListDataListener(ListDataListener l) {
             listeners.remove(l);
+        }
+    }
+
+    private static class FileDeleter implements FileVisitor {
+
+        public FileDeleter() {
+        }
+
+        @Override
+        public FileVisitResult preVisitDirectory(Object dir, BasicFileAttributes attrs) throws IOException {
+            return FileVisitResult.CONTINUE;
+        }
+
+        @Override
+        public FileVisitResult visitFile(Object file, BasicFileAttributes attrs) throws IOException {
+            Files.delete((Path) file);
+            return FileVisitResult.CONTINUE;
+        }
+
+        @Override
+        public FileVisitResult visitFileFailed(Object file, IOException exc) throws IOException {
+            return FileVisitResult.CONTINUE;
+        }
+
+        @Override
+        public FileVisitResult postVisitDirectory(Object dir, IOException exc) throws IOException {
+            Files.delete((Path) dir);
+            return FileVisitResult.CONTINUE;
+        }
+    }
+    
+    private static class FileLister implements FileVisitor {
+        HashSet<Path> files;
+        boolean dirEmpty = false;
+        public FileLister(HashSet<Path> files) {
+            this.files = files;
+        }
+
+        @Override
+        public FileVisitResult preVisitDirectory(Object dir, BasicFileAttributes attrs) throws IOException {
+            dirEmpty = true;
+            return FileVisitResult.CONTINUE;
+        }
+
+        @Override
+        public FileVisitResult visitFile(Object file, BasicFileAttributes attrs) throws IOException {
+            if(attrs.isRegularFile()){
+                dirEmpty = false;
+                files.add((Path)file);
+            }
+            return FileVisitResult.CONTINUE;
+        }
+
+        @Override
+        public FileVisitResult visitFileFailed(Object file, IOException exc) throws IOException {
+            return FileVisitResult.CONTINUE;
+        }
+
+        @Override
+        public FileVisitResult postVisitDirectory(Object dir, IOException exc) throws IOException {
+            if(dirEmpty) { // delete directory if empty
+                boolean empty = true;
+                Path p = (Path)dir;
+                Iterator<Path> it = p.iterator();
+                while(it.hasNext()) { // double-check whether empty
+                    if(!it.next().toFile().isDirectory()) {
+                        empty = false;
+                        break;
+                    }
+                }
+                if(empty) {
+                    Files.delete(p);
+                    return FileVisitResult.CONTINUE;
+                }
+            }
+            files.add((Path)dir);
+            return FileVisitResult.CONTINUE;
         }
     }
 }

@@ -145,7 +145,7 @@ public class SyncGUI extends javax.swing.JFrame {
             }
         });
 
-        deleteOtherTitlesCheckbox.setText("Delete other titles from destination");
+        deleteOtherTitlesCheckbox.setText("Delete other files from destination");
         deleteOtherTitlesCheckbox.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 deleteOtherTitlesCheckboxActionPerformed(evt);
@@ -180,7 +180,7 @@ public class SyncGUI extends javax.swing.JFrame {
                         .addComponent(syncButton))
                     .addGroup(layout.createSequentialGroup()
                         .addComponent(deleteOtherPlaylistsCheckbox)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED, 6, Short.MAX_VALUE)
                         .addComponent(deleteOtherTitlesCheckbox)))
                 .addContainerGap())
         );
@@ -291,7 +291,7 @@ public class SyncGUI extends javax.swing.JFrame {
         boolean sel = deleteOtherTitlesCheckbox.isSelected();
         if(sel) {
             int resp = JOptionPane.showConfirmDialog(this,
-            "Warning: This deletes Music, Audiobooks, etc folders in the destination folder. Do you really want that?",
+            "Warning: This deletes every file in the destination folder but the ones being synced. Do you really want that?",
             "Warning",JOptionPane.OK_CANCEL_OPTION,JOptionPane.QUESTION_MESSAGE);
             if(resp == JOptionPane.CLOSED_OPTION || resp == JOptionPane.CANCEL_OPTION) {
                 sel = false;

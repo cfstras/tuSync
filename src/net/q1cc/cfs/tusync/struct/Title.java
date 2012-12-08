@@ -51,9 +51,8 @@ public class Title {
     public long id;
     public Object[] attribs;
     public boolean selected;
-    public File file;
     public volatile boolean fileChecked;
-    public static String baseFolder;
+    public static volatile String baseFolder;
     
     public Title(long id) {
         this.id = id;
@@ -87,35 +86,35 @@ public class Title {
         }
         
         File f;
-        try {
-            String location = decodeLocation((String)loc); 
-            f = new File(location);
-        } catch (UnsupportedEncodingException ex) {
-            System.out.println(loc);
-            ex.printStackTrace();
-            attribs[getAttInd("Size")] = 0L;
-            fileChecked = true;
-            return 0;
-        }
+        String location = decodeLocation((String)loc);
+        f = new File(location);
         if(!f.exists()) {
-            System.out.println("404 "+f.getAbsolutePath()+" in "+toString());
+            System.out.println("not found "+f.getAbsolutePath()+" in "+toString());
             attribs[getAttInd("Size")] = 0L;
             fileChecked = true;
             return 0;
         }
         if(!f.canRead()) {
-            System.out.println("403 "+toString());
+            System.out.println("can't read: "+toString());
             attribs[getAttInd("Size")] = 0L;
+            attribs[attribIndexes.get("Location")] = location;
             fileChecked = true;
             return 0;
         }
-        file = f;
+        attribs[attribIndexes.get("Location")] = f.getAbsolutePath();
         long size = f.length();
-        if(!new Long(size).equals( attribs[attribIndexes.get("Size")] )) {
-            attribs[getAttInd("Size")] = size;
-        }
+        attribs[getAttInd("Size")] = size;
         fileChecked = true;
         return size;
+    }
+
+    public String getFile() {
+        if(fileChecked)
+        {
+            return (String)attribs[attribIndexes.get("Location")];
+        }
+        getSizeOnDisk();
+        return (String)attribs[attribIndexes.get("Location")];
     }
     
     public long getLength() {
@@ -142,11 +141,16 @@ public class Title {
         return b.toString();
     }
 
-    public static String decodeLocation(String location) throws UnsupportedEncodingException {
+    public static String decodeLocation(String location) {
         if(location.startsWith("file://localhost/")) {
             location = location.substring("file://localhost/".length());
         }
-        return URLDecoder.decode(location.replaceAll("\\+","%2b"),"UTF-8");
+        try {
+            return URLDecoder.decode(location.replaceAll("\\+","%2b"),"UTF-8");
+        } catch (UnsupportedEncodingException ex) {
+            ex.printStackTrace();
+        }
+        return location;
     }
     
     public static String getPathRelative(String pathAbsolute) {

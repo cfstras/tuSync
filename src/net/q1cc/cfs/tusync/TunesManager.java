@@ -11,6 +11,7 @@ import java.nio.file.CopyOption;
 import java.nio.file.FileVisitResult;
 import java.nio.file.FileVisitor;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -52,7 +53,7 @@ public class TunesManager {
     public ArrayList<Playlist> playlists;
     public HashMap<Integer, Title> titles;
     private ReCheckThread reCheckThread;
-    private HashSet<Title> titlesToSync;
+    private HashMap<String, Title> titlesToSync;
     public String baseFolder;
     TunesModel libModel;
     public boolean recheck;
@@ -289,7 +290,8 @@ public class TunesManager {
             JOptionPane.showMessageDialog(main.gui, "Can't write target path", "Write error", JOptionPane.ERROR_MESSAGE);
             return;
         }
-        
+
+        titlesToSync = new HashMap<String, Title>(256);
         syncPlaylists(targetPathFile);
         syncTitles(targetPathFile);
         titlesToSync = null;
@@ -322,7 +324,6 @@ public class TunesManager {
             main.gui.progressBar.setIndeterminate(false);
         }
         
-        titlesToSync = new HashSet<Title>(256);
         while(plIt.hasNext()) {
             PrintWriter out = null;
             try {
@@ -343,14 +344,15 @@ public class TunesManager {
                 Iterator<Title> titleIt = playlist.tracks.values().iterator();
                 while(titleIt.hasNext()) {
                     Title t = titleIt.next();
-                    titlesToSync.add(t);
                     out.print("#EXTINF:");
                     out.print(t.getLength()/100);
                     out.print(", ");
                     out.print(t.attribs[Title.getAttInd("Artist")]);
                     out.print(" - ");
                     out.println(t.attribs[Title.getAttInd("Name")]);
-                    out.println(Title.getPathRelative(new File(t.file.toString()).getAbsolutePath()));
+                    String pathRel = Title.getPathRelative(t.getFile());
+                    out.println(pathRel);
+                    titlesToSync.put(pathRel, t);
                 }
                 
                 out.println();
@@ -375,13 +377,17 @@ public class TunesManager {
         
         int titlesPerValue = Math.max(1,titlesToSync.size() / 100);
         int value = 10, i = 0, iMax = titlesToSync.size();
-        
+
         HashSet<Path> filesInTarget = new HashSet<Path>(256);
         if(main.props.getBoolean("sync.deleteothertitles", false)) {
+            //walk dir and delete any extra files.
             main.gui.progressBar.setIndeterminate(true);
-            main.gui.progressBar.setString("building file list...");
+            main.gui.progressBar.setString("deleting other files...");
             try {
-                Files.walkFileTree(targetPathFile.toPath(), new FileLister(filesInTarget));
+                for (String s : tunesTitleFolders){
+                    Files.walkFileTree(new File(targetPathFile+File.separator+s).toPath(),
+                        new FileDeleter(titlesToSync, targetPathFile.getAbsolutePath()));
+                }
             } catch (IOException ex) {
                 ex.printStackTrace();
             }
@@ -389,67 +395,28 @@ public class TunesManager {
             main.gui.progressBar.setIndeterminate(false);
         }
         
-        Iterator<Title> titleIt = titlesToSync.iterator();
+        Iterator<Entry<String, Title>> titleIt = titlesToSync.entrySet().iterator();
         while(titleIt.hasNext()) {
             if(i++ % titlesPerValue == 0) {
                 main.gui.progressBar.setString("syncing titles: "+i+" / "+iMax);
                 main.gui.progressBar.setValue(10 + ++value);
             }
-            Title t = titleIt.next();
-            String relpath = Title.getPathRelative(new File(t.file.toString()).getAbsolutePath());
-            File targetfile = new File(targetPathFile.getAbsolutePath()+File.separator+relpath);
-            if(t.file == null) {
-                t.getSizeOnDisk();
-            }
-            if(t.file == null) {
-                System.out.println("File not found: "+t.toString());
-                continue;
-            }
+            Entry<String, Title> t = titleIt.next();
+            Path targetfile = new File(targetPathFile +File.separator+ t.getKey()).toPath();
+
             try {
-                filesInTarget.remove(targetfile.toPath());
-                Files.createDirectories(targetfile.toPath());
-                //targetfile.getParentFile().mkdirs();
-                copyFile(t.file, targetfile);
+                Path source = new File(t.getValue().getFile()).toPath();
+                filesInTarget.remove(targetfile);
+                Files.createDirectories(targetfile.getParent());
+                System.out.println("copying "+source +" to "+ targetfile);
+                Files.copy(source, targetfile, StandardCopyOption.REPLACE_EXISTING);
             } catch (IOException ex) {
                 ex.printStackTrace();
             }
         }
         main.gui.progressBar.setValue(110);
         main.gui.progressBar.setString("Titles successfully synced!");
-        
-        if(main.props.getBoolean("sync.deleteothertitles", false)) {
-            main.gui.progressBar.setString("Deleting other files...");
-            main.gui.progressBar.setIndeterminate(true);
-            System.out.println("other files deleted:");
-            for(Path t:filesInTarget) { // delete any files remaining in dir
-                System.out.println(t); //TODO delete beforehand, in case we're running low on space
-                try {
-                    Files.delete(t);
-                } catch (IOException ex) {
-                    ex.printStackTrace();
-                }
-            }
-            main.gui.progressBar.setIndeterminate(false);
-            main.gui.progressBar.setString("Titles successfully synced!");
-        }
-        System.out.println("meh.");
-    }
-    
-    public static void copyFile(File sourceFile, File destFile) throws IOException {
-        if (!destFile.exists()) {
-            destFile.createNewFile();
-        } else {
-            if(sourceFile.length() == destFile.length()
-            && sourceFile.lastModified() <= destFile.lastModified()) {
-                DateFormat t = DateFormat.getDateTimeInstance();
-                System.out.println("Skipping: srcTime:"+t.format(new Date(sourceFile.lastModified()))
-                +" dstTime: "+t.format(new Date(destFile.lastModified()))+ " size:"+sourceFile.length()
-                +" - "+destFile.getAbsolutePath());
-                return;
-            }
-        }
-
-        Files.copy(sourceFile.toPath(),destFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        System.out.println("success.");
     }
     
     long lastSize = 0;
@@ -663,17 +630,46 @@ public class TunesManager {
 
     private static class FileDeleter implements FileVisitor {
 
-        public FileDeleter() {
+        HashMap<String, Title> notThese;
+        String basePath;
+        boolean empty = false;
+
+        public FileDeleter(HashMap<String, Title> notThese, String basePath) {
+            this.notThese = notThese;
+            this.basePath = basePath;
         }
 
         @Override
         public FileVisitResult preVisitDirectory(Object dir, BasicFileAttributes attrs) throws IOException {
+            empty = true;
             return FileVisitResult.CONTINUE;
         }
 
         @Override
         public FileVisitResult visitFile(Object file, BasicFileAttributes attrs) throws IOException {
-            Files.delete((Path) file);
+            String relpath = ((Path)file).toAbsolutePath().toString().replace(basePath+File.separator, "");
+            Title t = notThese.remove(relpath);
+            if(t == null) {
+                Files.delete((Path) file);
+                System.out.println("deleting "+file);
+            } else {
+                empty = false;
+                Path source = new File(t.getFile()).toPath();
+                if(Files.size(source) == Files.size((Path)file)
+                && Files.getLastModifiedTime(source).compareTo(Files.getLastModifiedTime((Path)file)) <= 0)  {
+
+                    /*System.out.println("Skipping: srcTime:"+(Files.getLastModifiedTime(source).toString())
+                    +" dstTime: "+Files.getLastModifiedTime((Path)file).toString()+ " size:"+Files.size(source)
+                    +" src: "+source+" dest: "+(Path)file);*/
+                } else {
+                    //put it back in
+                    System.out.println("replacing: srcTime:"+(Files.getLastModifiedTime(source).toString())
+                    +" dstTime: "+Files.getLastModifiedTime((Path)file).toString()+ " size:"+Files.size(source)
+                    +" src: "+source+" dest: "+(Path)file);
+                    notThese.put(relpath, t);
+                }
+                
+            }
             return FileVisitResult.CONTINUE;
         }
 
@@ -684,11 +680,13 @@ public class TunesManager {
 
         @Override
         public FileVisitResult postVisitDirectory(Object dir, IOException exc) throws IOException {
-            Files.delete((Path) dir);
+            if(empty) {
+                Files.delete((Path) dir);
+            }
             return FileVisitResult.CONTINUE;
         }
     }
-    
+
     private static class FileLister implements FileVisitor {
         HashSet<Path> files;
         boolean dirEmpty = false;

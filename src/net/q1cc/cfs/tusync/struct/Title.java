@@ -154,10 +154,13 @@ public class Title {
     }
     
     public static String getPathRelative(String pathAbsolute) {
-        String with = pathAbsolute;
-        String without = with.replace(baseFolder, "");
-        if(without.equals(with)) {
-            System.out.println("relativePath: "+with+" does not contain "+baseFolder);
+        if(pathAbsolute == null)
+        {
+            return null;
+        }
+        String without = pathAbsolute.replace(baseFolder, "");
+        if(without.equals(pathAbsolute)) {
+            System.out.println("relativePath: "+pathAbsolute+" does not contain "+baseFolder);
         }
         return without;
     }

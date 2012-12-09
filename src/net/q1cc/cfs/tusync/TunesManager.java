@@ -344,13 +344,18 @@ public class TunesManager {
                 Iterator<Title> titleIt = playlist.tracks.values().iterator();
                 while(titleIt.hasNext()) {
                     Title t = titleIt.next();
+                    String pathRel = Title.getPathRelative(t.getFile());
+                    if(pathRel == null)
+                    {
+                        //track not found, was already printed
+                        continue;
+                    }
                     out.print("#EXTINF:");
                     out.print(t.getLength()/100);
                     out.print(", ");
                     out.print(t.attribs[Title.getAttInd("Artist")]);
                     out.print(" - ");
                     out.println(t.attribs[Title.getAttInd("Name")]);
-                    String pathRel = Title.getPathRelative(t.getFile());
                     out.println(pathRel);
                     titlesToSync.put(pathRel, t);
                 }
@@ -681,7 +686,19 @@ public class TunesManager {
         @Override
         public FileVisitResult postVisitDirectory(Object dir, IOException exc) throws IOException {
             if(empty) {
-                Files.delete((Path) dir);
+                boolean empty = true;
+                Path p = (Path)dir;
+                Iterator<Path> it = p.iterator();
+                while(it.hasNext()) { // double-check whether empty
+                    if(!it.next().toFile().isDirectory()) {
+                        empty = false;
+                        break;
+                    }
+                }
+                if(empty) {
+                    Files.delete(p);
+                    return FileVisitResult.CONTINUE;
+                }
             }
             return FileVisitResult.CONTINUE;
         }

@@ -192,7 +192,7 @@ public class TunesManager {
             for (Entry<String, Object> e : obj.entrySet()) {
                 int ind = Title.getAttInd(e.getKey());
                 if (ind == -1) {
-                    System.out.println("Error: no row named " + e.getKey());
+                    //error was already printed, ignore attribute
                     continue;
                 }
                 Object val = e.getValue();

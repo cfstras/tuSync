@@ -31,9 +31,10 @@ public class Title {
         "Season", "Start Time", "Sort Composer", "Episode Order", "Content Rating",
         "Release Date", "Protected", "Purchased", "Episode", "Stop Time",
         "Equalizer", "Unplayed", "iTunesU", "Part Of Gapless Album", "Explicit",
-        "Sort Series"
+        "Sort Series", "Podcast", "Rating Computed"
     }; //TODO find out names
-    
+    //TODO ignore some attributes?
+
     public final static HashMap<String,Integer> attribIndexes;
     
     static {

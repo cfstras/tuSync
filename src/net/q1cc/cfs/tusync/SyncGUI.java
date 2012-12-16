@@ -36,8 +36,11 @@ public class SyncGUI extends javax.swing.JFrame {
             public void mousePressed(MouseEvent e) {
                 int index = list.locationToIndex(e.getPoint());
                 if (index != -1) {
-                    Playlist checkbox = (Playlist) list.getModel().getElementAt(
-                            index);
+                    Object o = list.getModel().getElementAt(index);
+                    if(! (o instanceof Playlist)) {
+                        return;
+                    }
+                    Playlist checkbox = (Playlist) o;
                     tunesMan.toggleSelected(checkbox);
                     list.repaint();
                 }

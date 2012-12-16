@@ -83,6 +83,8 @@ public class SyncGUI extends javax.swing.JFrame {
         progressBar = new javax.swing.JProgressBar();
         deleteOtherPlaylistsCheckbox = new javax.swing.JCheckBox();
         deleteOtherTitlesCheckbox = new javax.swing.JCheckBox();
+        selectAllButton = new javax.swing.JCheckBox();
+        selectLastButton = new javax.swing.JCheckBox();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
         setTitle("tuSync");
@@ -152,6 +154,20 @@ public class SyncGUI extends javax.swing.JFrame {
             }
         });
 
+        selectAllButton.setText("Select all");
+        selectAllButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                selectAllButtonActionPerformed(evt);
+            }
+        });
+
+        selectLastButton.setText("Select Last Synced");
+        selectLastButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                selectLastButtonActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
@@ -180,8 +196,13 @@ public class SyncGUI extends javax.swing.JFrame {
                         .addComponent(syncButton))
                     .addGroup(layout.createSequentialGroup()
                         .addComponent(deleteOtherPlaylistsCheckbox)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED, 6, Short.MAX_VALUE)
-                        .addComponent(deleteOtherTitlesCheckbox)))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(deleteOtherTitlesCheckbox))
+                    .addGroup(layout.createSequentialGroup()
+                        .addComponent(selectAllButton)
+                        .addGap(18, 18, 18)
+                        .addComponent(selectLastButton)
+                        .addGap(0, 0, Short.MAX_VALUE)))
                 .addContainerGap())
         );
         layout.setVerticalGroup(
@@ -198,7 +219,11 @@ public class SyncGUI extends javax.swing.JFrame {
                     .addComponent(targetPathField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(targetPathChooseButton))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 472, Short.MAX_VALUE)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(selectAllButton)
+                    .addComponent(selectLastButton))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 451, Short.MAX_VALUE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(deleteOtherPlaylistsCheckbox)
@@ -299,6 +324,22 @@ public class SyncGUI extends javax.swing.JFrame {
         }
         Main.instance().props.putBoolean("sync.deleteothertitles", sel);
     }//GEN-LAST:event_deleteOtherTitlesCheckboxActionPerformed
+
+    private void selectAllButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_selectAllButtonActionPerformed
+        setSyncButton(true, false, false);
+        boolean select = selectAllButton.isSelected();
+        //select all playlists
+        for(Playlist p : tunesMan.playlists) {
+            p.setSelected(select);
+        }
+        list.repaint();
+        setSyncButton(tunesMan.checkingSize, tunesMan.syncingLib, tunesMan.loadingLib);
+        tunesMan.reCheck();
+    }//GEN-LAST:event_selectAllButtonActionPerformed
+
+    private void selectLastButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_selectLastButtonActionPerformed
+        // TODO implement saving of selection
+    }//GEN-LAST:event_selectLastButtonActionPerformed
     
     public void setSyncButton(boolean checking, boolean syncing, boolean loading) {
         syncButton.setEnabled(!checking && !syncing && !loading);
@@ -319,6 +360,8 @@ public class SyncGUI extends javax.swing.JFrame {
     javax.swing.JList list;
     private javax.swing.JButton loadDBButton;
     javax.swing.JProgressBar progressBar;
+    private javax.swing.JCheckBox selectAllButton;
+    private javax.swing.JCheckBox selectLastButton;
     javax.swing.JButton syncButton;
     private javax.swing.JButton targetPathChooseButton;
     private javax.swing.JTextField targetPathField;

@@ -1,6 +1,7 @@
 package net.q1cc.cfs.tusync;
 
 import java.awt.EventQueue;
+import java.io.File;
 import java.util.Properties;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
@@ -17,6 +18,8 @@ public class Main {
     public SyncGUI gui;
     public TunesManager tunesManager;
     public Preferences props;
+
+    public static final boolean fileSystemCaseSensitive = !(new File( "a" ).equals( new File( "A" )));;
 
     private Main() {
         props = Preferences.userNodeForPackage(this.getClass());

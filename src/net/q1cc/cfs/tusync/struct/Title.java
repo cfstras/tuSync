@@ -61,7 +61,11 @@ public class Title {
     
     public long getSizeOnDisk() {
         if(fileChecked) {
-            return (Long)attribs[getAttInd("Size")];
+            long l = (Long)attribs[getAttInd("Size")];
+            if(l==0) {
+                selected=false;
+            }
+            return l;
         }
         
         Object kind = attribs[getAttInd("Kind")];
@@ -153,7 +157,8 @@ public class Title {
         return location;
     }
     
-    public static String getPathRelative(String pathAbsolute) {
+    public String getPathRelative() {
+        String pathAbsolute = getFile();
         if(pathAbsolute == null)
         {
             return null;
@@ -161,6 +166,7 @@ public class Title {
         String without = pathAbsolute.replace(baseFolder, "");
         if(without.equals(pathAbsolute)) {
             System.out.println("relativePath: "+pathAbsolute+" does not contain "+baseFolder);
+            selected = false;
         }
         return without;
     }

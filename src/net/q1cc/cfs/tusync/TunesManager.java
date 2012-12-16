@@ -226,7 +226,7 @@ public class TunesManager {
         }
 
         int numLists = lists.size();
-        int listsPerProgress = numLists / 100;
+        int listsPerProgress = Math.max(1,numLists/100);
         int num = 0;
         int progress = 100;
         main.gui.progressBar.setMinimum(0);

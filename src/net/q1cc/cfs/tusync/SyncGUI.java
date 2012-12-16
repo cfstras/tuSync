@@ -27,7 +27,7 @@ public class SyncGUI extends javax.swing.JFrame {
         initComponents();
         
         targetPathField.setText(Main.instance().props.get("lib.targetpath", null));
-        libPathField.setText(Main.instance().props.get("lib.basepath",null));
+        libPathField.setText(Main.instance().props.get("lib.xmlfile",null));
         deleteOtherPlaylistsCheckbox.setSelected(Main.instance().props.getBoolean("sync.deleteotherplaylists", false));
         deleteOtherTitlesCheckbox.setSelected(Main.instance().props.getBoolean("sync.deleteothertitles", false));
         
@@ -241,7 +241,13 @@ public class SyncGUI extends javax.swing.JFrame {
     }// </editor-fold>//GEN-END:initComponents
 
     private void libPathFieldActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_libPathFieldActionPerformed
-        Main.instance().props.put("lib.xmlfile", libPathField.getText());
+        File f = new File(libPathField.getText());
+
+        if (f.exists()) {
+            libPathField.setText(f.getAbsolutePath());
+            Main.instance().props.put("lib.xmlfile", f.getAbsolutePath());
+            Main.instance().props.put("lib.basepath", f.getParent());
+        }
     }//GEN-LAST:event_libPathFieldActionPerformed
     
     private void libPathChooseButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_libPathChooseButtonActionPerformed

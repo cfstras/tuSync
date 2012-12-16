@@ -127,13 +127,12 @@ public class TunesManager {
 
         Main.instance().props.putBoolean("lib.lastLoadWasSuccessful",false);
 
-        String path = main.props.get("lib.basepath", null);
+        String path = main.props.get("lib.xmlfile", null);
         if (path == null) {
             JOptionPane.showMessageDialog(main.gui, "Please select the path to your iTunes library first.");
             return;
         }
-        File tunesFolder = new File(path);
-        File xmlFile = new File(tunesFolder.getAbsolutePath() + System.getProperty("file.separator") + "iTunes Music Library.xml");
+        File xmlFile = new File(path);
         if (!xmlFile.exists()) {
             JOptionPane.showMessageDialog(main.gui, "Sorry, but i couldn't find your Library XML file.");
             //TODO find reason why xml was not found

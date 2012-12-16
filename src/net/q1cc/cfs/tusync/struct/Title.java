@@ -37,15 +37,19 @@ public class Title {
     public final static HashMap<String,Integer> attribIndexes;
     
     static {
-        HashMap<String,Integer> inds = new HashMap<String, Integer>(attribNames.length);
+        attribIndexes = new HashMap<String, Integer>(attribNames.length);
         for(int i=0;i<attribNames.length;i++) {
-            inds.put(attribNames[i], i);
+            attribIndexes.put(attribNames[i], i);
         }
-        attribIndexes = inds;
     }
     
     public static int getAttInd(String name) {
-        return attribIndexes.get(name);
+        Integer i = attribIndexes.get(name);
+        if(i==null) {
+            System.out.println("ERROR: could not find attribute for "+name);
+            return -1;
+        }
+        return i;
     }
     
     public long id;

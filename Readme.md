@@ -17,6 +17,13 @@ currently, only _iTunes_ libraries are supported, but that should change soon.
 if your library has duplicates, they will most likely be synced, too. will fix that once i get a report :D
 
 
+###Disclaimer
+*This program is far from finished.*
+It may destruct your computer, your whole network or induce World War III.
+I am not responsible for anything this code does on your computer, your family or your cat.
+You are completely on your own, I probably don't yet know myself how to solve any problems you might encounter
+(If I did, I would have fixed it).
+
 ###License
 
 _tuSync_ is currently published under the GPLv3.

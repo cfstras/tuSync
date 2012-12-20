@@ -382,9 +382,6 @@ public class TunesManager {
     
     private void syncTitles(File targetPathFile) {
         main.gui.progressBar.setString("syncing titles...");
-        
-        int titlesPerValue = Math.max(1,titlesToSync.size() / 1000);
-        int value = 100, i = 0, iMax = titlesToSync.size();
 
         HashSet<Path> filesInTarget = new HashSet<Path>(256);
         if(main.props.getBoolean("sync.deleteothertitles", false)) {
@@ -402,7 +399,10 @@ public class TunesManager {
             main.gui.progressBar.setString("syncing titles...");
             main.gui.progressBar.setIndeterminate(false);
         }
-        
+
+        int titlesPerValue = Math.max(1,titlesToSync.size() / 1000);
+        int value = 100, i = 0, iMax = titlesToSync.size();
+
         Iterator<Entry<String, Title>> titleIt = titlesToSync.entrySet().iterator();
         while(titleIt.hasNext()) {
             Entry<String, Title> t = null;

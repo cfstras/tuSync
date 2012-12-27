@@ -347,7 +347,9 @@ public class SyncGUI extends javax.swing.JFrame {
     }//GEN-LAST:event_selectAllButtonActionPerformed
 
     private void selectLastButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_selectLastButtonActionPerformed
-        // TODO implement saving of selection
+        if(selectLastButton.isSelected()) {
+            tunesMan.loadSelectedPlaylists();
+        }
     }//GEN-LAST:event_selectLastButtonActionPerformed
     
     public void setSyncButton(boolean checking, boolean syncing, boolean loading) {
@@ -370,7 +372,7 @@ public class SyncGUI extends javax.swing.JFrame {
     private javax.swing.JButton loadDBButton;
     javax.swing.JProgressBar progressBar;
     private javax.swing.JCheckBox selectAllButton;
-    private javax.swing.JCheckBox selectLastButton;
+    javax.swing.JCheckBox selectLastButton;
     javax.swing.JButton syncButton;
     private javax.swing.JButton targetPathChooseButton;
     private javax.swing.JTextField targetPathField;

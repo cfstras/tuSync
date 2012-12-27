@@ -26,6 +26,7 @@ public class Main {
         Runtime.getRuntime().addShutdownHook(new Thread() {
             @Override public void run() {
                 try {
+                    tunesManager.saveSelectedPlaylists();
                     props.sync();
                 } catch (BackingStoreException ex) {
                     ex.printStackTrace();

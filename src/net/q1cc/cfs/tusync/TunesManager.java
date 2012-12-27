@@ -18,6 +18,8 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.StringTokenizer;
+import java.util.prefs.Preferences;
 import javax.swing.JOptionPane;
 import javax.swing.ListModel;
 import javax.swing.event.ListDataEvent;
@@ -125,7 +127,7 @@ public class TunesManager {
         main.gui.progressBar.setString("Loading Library...");
         main.gui.progressBar.setIndeterminate(true);
 
-        Main.instance().props.putBoolean("lib.lastLoadWasSuccessful",false);
+        main.props.putBoolean("lib.lastLoadWasSuccessful",false);
 
         String path = main.props.get("lib.xmlfile", null);
         if (path == null) {
@@ -150,8 +152,16 @@ public class TunesManager {
         loadTracks(lib);
         loadPlaylists(lib);
         main.gui.list.setModel(libModel);
-        Main.instance().props.putBoolean("lib.lastLoadWasSuccessful",true);
         libModel.fireUpdate();
+        if(main.props.getBoolean("lib.lastLoadWasSuccessful",false)) {
+            //select last selected playlists
+            main.gui.selectLastButton.setSelected(true);
+            main.gui.repaint();
+            loadSelectedPlaylists();
+            main.gui.repaint();
+        }
+
+        main.props.putBoolean("lib.lastLoadWasSuccessful",true);
         
         System.gc();
         //TODO serialize
@@ -508,6 +518,42 @@ public class TunesManager {
             return;
         }
         playlist.setSelected(!playlist.selected);
+        reCheck();
+    }
+
+    void saveSelectedPlaylists() {
+        Preferences p = main.props;
+        StringBuilder sb = new StringBuilder();
+        for(Playlist pl : playlists) {
+            if(pl.selected) {
+                sb.append(pl.persID);
+                sb.append(';');
+            }
+        }
+        p.put("playlists.selected", sb.toString());
+    }
+
+    void loadSelectedPlaylists() {
+        Preferences p = main.props;
+        String sel = p.get("playlists.selected", "");
+        if(sel==null && sel.equals("")) {
+            System.out.println("no selected playlists saved");
+            return;
+        }
+        for(Playlist pl : playlists) {
+            pl.selected=false;
+        }
+        StringTokenizer st = new StringTokenizer(sel,";");
+        while(st.hasMoreElements()) {
+            String persID = st.nextToken();
+            for(Playlist pl : playlists) {
+                if(pl.persID != null && pl.persID.equals(persID)) {
+                    pl.selected = true;
+                    pl.setSelected(true);
+                }
+            }
+        }
+        main.gui.list.repaint();
         reCheck();
     }
 

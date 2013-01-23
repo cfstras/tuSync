@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.StringTokenizer;
 import java.util.prefs.Preferences;
+import java.util.regex.Pattern;
 import javax.swing.JOptionPane;
 import javax.swing.ListModel;
 import javax.swing.event.ListDataEvent;
@@ -47,8 +48,8 @@ public class TunesManager {
     public ArrayList<Playlist> playlists;
     public HashMap<Integer, Title> titles;
     private ReCheckThread reCheckThread;
-    private HashMap<String, Title> titlesToSync;
-    public String baseFolder;
+    private HashMap<Path, Title> titlesToSync;
+    public Path baseFolder;
     TunesModel libModel;
     public boolean recheck;
     boolean checkingSize;
@@ -70,11 +71,11 @@ public class TunesManager {
     }
 
     private void initLib() {
-        playlists = new ArrayList<Playlist>(32);
-        titles = new HashMap<Integer, Title>(256);
+        playlists = new ArrayList<>(32);
+        titles = new HashMap<>(256);
     }
 
-    public void loadLibrary() {
+    public final void loadLibrary() {
         Thread libt = new Thread() {
             @Override
             public void run() {
@@ -85,10 +86,8 @@ public class TunesManager {
                 } catch (TunesParseException e) {
                     System.out.println("Parse Error: " + e);
                 } catch (XmlParseException e) {
-                    // TODO Auto-generated catch block
                     e.printStackTrace();
                 } catch (IOException e) {
-                    // TODO Auto-generated catch block
                     e.printStackTrace();
                 } finally {
                     main.gui.progressBar.setIndeterminate(false);
@@ -146,7 +145,8 @@ public class TunesManager {
         //    System.out.println(e.getKey() + ": " + e.getValue().getClass());
         //}
 
-        baseFolder = new File(Title.decodeLocation(lib.get("Music Folder").toString())).getAbsolutePath().concat(File.separator);
+        baseFolder = new File(Title.decodeLocation(lib.get("Music Folder").toString()))
+            .getAbsoluteFile().toPath().normalize();
         Title.baseFolder = baseFolder;
         
         loadTracks(lib);
@@ -164,9 +164,10 @@ public class TunesManager {
         main.props.putBoolean("lib.lastLoadWasSuccessful",true);
         
         System.gc();
-        //TODO serialize
+        //TODO we could serialize our database here.
     }
-
+    
+    @SuppressWarnings("unchecked")
     void loadTracks(Map<String, Object> lib) throws TunesParseException {
         Object tr = lib.remove("Tracks");
         HashMap<String, HashMap> tracks = null;
@@ -223,6 +224,7 @@ public class TunesManager {
 
     }
 
+    @SuppressWarnings("unchecked")
     void loadPlaylists(Map<String, Object> lib) throws TunesParseException {
         //playlists!
         Object pl = lib.remove("Playlists");
@@ -299,7 +301,7 @@ public class TunesManager {
             return;
         }
 
-        titlesToSync = new HashMap<String, Title>(256);
+        titlesToSync = new HashMap<>(256);
         syncPlaylists(targetPathFile);
         syncTitles(targetPathFile);
         titlesToSync = null;
@@ -342,7 +344,8 @@ public class TunesManager {
                 if(!playlist.selected) {
                     continue;
                 }
-                String filename = playlist.title.replaceAll("[^\\w äöü\\-]", "-").concat(".m3u");
+                String filename = playlist.title.replaceAll("[^\\w"
+                    +Pattern.quote(" äöü-[].{}")+"]", "-").concat(".m3u");
                 File playlistFile = new File(targetPathFile.getAbsolutePath()+File.separator+filename);
                 System.out.println("Playlist "+playlist.title+" --> "+filename);
                 playlistFile.createNewFile();
@@ -355,7 +358,7 @@ public class TunesManager {
                     if(!t.selected) {
                         continue;
                     }
-                    String pathRel = t.getPathRelative();
+                    Path pathRel = t.getDestRelative();
                     if(pathRel == null || !t.selected)
                     {
                         continue;
@@ -367,9 +370,6 @@ public class TunesManager {
                     out.print(" - ");
                     out.println(t.attribs[Title.getAttInd("Name")]);
                     out.println(pathRel);
-                    if(!Main.fileSystemCaseSensitive) {
-                        pathRel = pathRel.toLowerCase();
-                    }
                     titlesToSync.put(pathRel, t);
                 }
                 
@@ -393,7 +393,7 @@ public class TunesManager {
     private void syncTitles(File targetPathFile) {
         main.gui.progressBar.setString("syncing titles...");
 
-        HashSet<Path> filesInTarget = new HashSet<Path>(256);
+        HashSet<Path> filesInTarget = new HashSet<>(256);
         if(main.props.getBoolean("sync.deleteothertitles", false)) {
             //walk dir and delete any extra files.
             main.gui.progressBar.setIndeterminate(true);
@@ -401,7 +401,7 @@ public class TunesManager {
             try {
                 for (String s : tunesTitleFolders){
                     Files.walkFileTree(new File(targetPathFile+File.separator+s).toPath(),
-                        new FileDeleter(titlesToSync, targetPathFile.getAbsolutePath()));
+                        new FileDeleter(titlesToSync, targetPathFile.getAbsoluteFile().toPath()));
                 }
             } catch (IOException ex) {
                 ex.printStackTrace();
@@ -409,26 +409,33 @@ public class TunesManager {
             main.gui.progressBar.setString("syncing titles...");
             main.gui.progressBar.setIndeterminate(false);
         }
-
-        int titlesPerValue = Math.max(1,titlesToSync.size() / 1000);
+        long bytesPerValue = Math.max(1,lastSize / 1000);
         int value = 100, i = 0, iMax = titlesToSync.size();
+        long bytes = 0;
+        long totalBytes = 0;
 
-        Iterator<Entry<String, Title>> titleIt = titlesToSync.entrySet().iterator();
+        for(Title t : titlesToSync.values()) {
+            totalBytes += t.getSizeOnDisk();
+        }
+
+        Iterator<Entry<Path, Title>> titleIt = titlesToSync.entrySet().iterator();
         while(titleIt.hasNext()) {
-            Entry<String, Title> t = null;
+            Entry<Path, Title> t = null;
             try {
-                main.gui.progressBar.setString("syncing titles: "+i+" / "+iMax);
-                if(i++ % titlesPerValue == 0) {
+                main.gui.progressBar.setString("syncing titles: "+i+" / "+iMax+", "+humanize(bytes)+" / "+humanize(totalBytes));
+                if(bytes % bytesPerValue == 0) {
                     main.gui.progressBar.setValue(++value);
                 }
                 t = titleIt.next();
                 Path targetfile = new File(targetPathFile +File.separator+ t.getKey()).toPath();
 
-                Path source = new File(t.getValue().getFile()).toPath();
+                Path source = t.getValue().getFile();
                 filesInTarget.remove(targetfile);
                 Files.createDirectories(targetfile.getParent());
                 System.out.println("copying "+source +" to "+ targetfile);
                 Files.copy(source, targetfile, StandardCopyOption.REPLACE_EXISTING);
+                bytes += t.getValue().getSizeOnDisk();
+                i++;
             } catch (IOException ex) {
                 ex.printStackTrace();
             } catch (InvalidPathException ex) {
@@ -473,7 +480,7 @@ public class TunesManager {
         main.gui.setSyncButton(checkingSize, syncingLib, loadingLib);
         lastSize = 0;
         long size = 0;
-        HashSet<Title> ignore = new HashSet<Title>(256);
+        HashSet<Title> ignore = new HashSet<>(256);
         for (Playlist p : playlists) {
             if (p.selected) {
                 size += getPlaylistSize(p.tracks.values(), ignore, size);
@@ -501,7 +508,7 @@ public class TunesManager {
         main.gui.progressBar.setStringPainted(true);
         lastSize = size;
     }
-    private static final String siPrefixes = " KMGTPE";
+    private static final String siPrefixes = "\0KMGTPEZY";
 
     private static String humanize(long bytes) {
         int prefixID = 0;
@@ -579,12 +586,12 @@ public class TunesManager {
         }
     }
 
-    private class TunesModel implements TreeModel, ListModel {
+    private class TunesModel implements TreeModel, ListModel<Object> {
 
         public String root = "Music";
         String playlistsNode = "Playlists";
-        public ArrayList<TreeModelListener> treeeners = new ArrayList<TreeModelListener>(2);
-        public ArrayList<ListDataListener> listeners = new ArrayList<ListDataListener>(2);
+        public ArrayList<TreeModelListener> treeeners = new ArrayList<>(2);
+        public ArrayList<ListDataListener> listeners = new ArrayList<>(2);
 
         public TunesModel() {
         }
@@ -599,16 +606,17 @@ public class TunesManager {
             if (parent == root) {
                 switch (index) {
                     case 0:
-                        return "Playlists";
+                        return playlistsNode;
                     case 1:
-                        return ""; //TODO tracks
+                        return ""; //TODO artists/genres/collections
                     default:
                         return null;
                 }
             } else if (parent == playlistsNode) {
                 return TunesManager.this.playlists.get(index);
-            } else if (playlists.contains(parent)) {
-                //return one title
+            } else if (parent instanceof Playlist
+                && playlists.contains((Playlist)parent)) {
+                //TODO expand playlist to titles
                 return null;
             }
             return null;
@@ -620,7 +628,8 @@ public class TunesManager {
                 return 1;
             } else if (parent == playlistsNode) {
                 return TunesManager.this.playlists.size();
-            } else if (TunesManager.this.playlists.contains(parent)) {
+            } else if (parent instanceof Playlist
+                && TunesManager.this.playlists.contains((Playlist)parent)) {
                 return 0;
                 //return ((Playlist)parent).tracks.size();
             }
@@ -643,7 +652,13 @@ public class TunesManager {
 
         @Override
         public int getIndexOfChild(Object parent, Object child) {
-            //TODO
+            if(child == root) {
+                return 0;
+            } else if(child == playlists) {
+                return 0;
+            } else if (parent == playlists){
+                TunesManager.this.playlists.indexOf(child);
+            }
             return 0;
         }
 
@@ -689,47 +704,48 @@ public class TunesManager {
         }
     }
 
-    private static class FileDeleter implements FileVisitor {
+    private static class FileDeleter implements FileVisitor<Path> {
 
-        HashMap<String, Title> notThese;
-        String basePath;
+        HashMap<Path, Title> notThese;
+        Path basePath;
         boolean empty = false;
 
-        public FileDeleter(HashMap<String, Title> notThese, String basePath) {
+        public FileDeleter(HashMap<Path, Title> notThese, Path basePath) {
             this.notThese = notThese;
             this.basePath = basePath;
         }
 
         @Override
-        public FileVisitResult preVisitDirectory(Object dir, BasicFileAttributes attrs) throws IOException {
+        public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
             empty = true;
+            if(attrs.isSymbolicLink()) {
+                return FileVisitResult.SKIP_SUBTREE;
+            }
             return FileVisitResult.CONTINUE;
         }
 
         @Override
-        public FileVisitResult visitFile(Object file, BasicFileAttributes attrs) throws IOException {
-            String relpath = ((Path)file).toAbsolutePath().toString().replace(basePath+File.separator, "");
-            if(!Main.fileSystemCaseSensitive) {
-                relpath = relpath.toLowerCase();
-            }
+        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+            Path relpath = basePath.relativize(file);
             Title t = notThese.remove(relpath);
-            if(t == null) {
-                Files.delete((Path) file);
+            if(t == null) { // The file is not in our list of songs to sync, delete it
+                Files.delete(file);
                 System.out.println("deleting "+file);
             } else {
                 empty = false;
-                Path source = new File(t.getFile()).toPath();
-                if(Files.size(source) == Files.size((Path)file)
-                && Files.getLastModifiedTime(source).compareTo(Files.getLastModifiedTime((Path)file)) <= 0)  {
-
+                Path source = t.getFile();
+                if(Files.size(source) == Files.size(file)
+                && Files.getLastModifiedTime(source).toMillis() - Files.getLastModifiedTime(file).toMillis()
+                    <= 1000)  {
+                    //skip if source older than destination, 1 second ignored
                     /*System.out.println("Skipping: srcTime:"+(Files.getLastModifiedTime(source).toString())
                     +" dstTime: "+Files.getLastModifiedTime((Path)file).toString()+ " size:"+Files.size(source)
                     +" src: "+source+" dest: "+(Path)file);*/
                 } else {
                     //put it back in
                     System.out.println("replacing: srcTime:"+(Files.getLastModifiedTime(source).toString())
-                    +" dstTime: "+Files.getLastModifiedTime((Path)file).toString()+ " size:"+Files.size(source)
-                    +" src: "+source+" dest: "+(Path)file);
+                    +" dstTime: "+Files.getLastModifiedTime(file).toString()+ " size:"+Files.size(source)
+                    +" src: "+source+" dest: "+file);
                     notThese.put(relpath, t);
                 }
                 
@@ -738,24 +754,24 @@ public class TunesManager {
         }
 
         @Override
-        public FileVisitResult visitFileFailed(Object file, IOException exc) throws IOException {
+        public FileVisitResult visitFileFailed(Path file, IOException exc) throws IOException {
             return FileVisitResult.CONTINUE;
         }
 
         @Override
-        public FileVisitResult postVisitDirectory(Object dir, IOException exc) throws IOException {
+        public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
             if(empty) {
-                boolean empty = true;
-                Path p = (Path)dir;
-                Iterator<Path> it = p.iterator();
+                boolean reallyEmpty = true;
+                Iterator<Path> it = dir.iterator();
                 while(it.hasNext()) { // double-check whether empty
-                    if(!it.next().toFile().isDirectory()) {
-                        empty = false;
+                    //TODO recursively delete subdirs
+                    if(! Files.isDirectory(it.next())) {
+                        reallyEmpty = false;
                         break;
                     }
                 }
-                if(empty) {
-                    Files.delete(p);
+                if(reallyEmpty) {
+                    Files.delete(dir);
                     return FileVisitResult.CONTINUE;
                 }
             }
@@ -797,17 +813,18 @@ public class TunesManager {
                 Path p = (Path)dir;
                 Iterator<Path> it = p.iterator();
                 while(it.hasNext()) { // double-check whether empty
-                    if(!it.next().toFile().isDirectory()) {
-                        empty = false;
-                        break;
-                    }
+                    empty = false;
+                    break;
                 }
                 if(empty) {
                     Files.delete(p);
                     return FileVisitResult.CONTINUE;
+                } else {
+                    files.add((Path)dir);
                 }
+            } else {
+                files.add((Path)dir);
             }
-            files.add((Path)dir);
             return FileVisitResult.CONTINUE;
         }
     }

@@ -10,7 +10,6 @@ import javax.swing.JList;
 import javax.swing.JOptionPane;
 import javax.swing.ListCellRenderer;
 import javax.swing.UIManager;
-import javax.swing.UnsupportedLookAndFeelException;
 import net.q1cc.cfs.tusync.struct.Playlist;
 
 /**
@@ -46,9 +45,9 @@ public class SyncGUI extends javax.swing.JFrame {
                 }
             }
         });
-        list.setCellRenderer(new ListCellRenderer() {
-            ListCellRenderer def = new DefaultListCellRenderer();
-            @Override
+        list.setCellRenderer(new ListCellRenderer<Object>() {
+            ListCellRenderer<Object> def = new DefaultListCellRenderer();
+            @Override @SuppressWarnings("unchecked")
             public Component getListCellRendererComponent(JList list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
                 if(!(value instanceof Playlist)) {
                     return def.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
@@ -80,7 +79,7 @@ public class SyncGUI extends javax.swing.JFrame {
         targetPathField = new javax.swing.JTextField();
         targetPathChooseButton = new javax.swing.JButton();
         jScrollPane1 = new javax.swing.JScrollPane();
-        list = new javax.swing.JList();
+        list = new javax.swing.JList<Object>();
         loadDBButton = new javax.swing.JButton();
         syncButton = new javax.swing.JButton();
         progressBar = new javax.swing.JProgressBar();
@@ -368,7 +367,7 @@ public class SyncGUI extends javax.swing.JFrame {
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JButton libPathChooseButton;
     private javax.swing.JTextField libPathField;
-    javax.swing.JList list;
+    javax.swing.JList<Object> list;
     private javax.swing.JButton loadDBButton;
     javax.swing.JProgressBar progressBar;
     private javax.swing.JCheckBox selectAllButton;

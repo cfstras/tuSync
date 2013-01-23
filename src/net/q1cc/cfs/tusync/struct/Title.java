@@ -1,16 +1,14 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
 package net.q1cc.cfs.tusync.struct;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.UnsupportedEncodingException;
-import java.net.MalformedURLException;
 import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URL;
 import java.net.URLDecoder;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
 
 /**
@@ -38,7 +36,7 @@ public class Title {
     public final static HashMap<String,Integer> attribIndexes;
     
     static {
-        attribIndexes = new HashMap<String, Integer>(attribNames.length);
+        attribIndexes = new HashMap<>(attribNames.length);
         for(int i=0;i<attribNames.length;i++) {
             attribIndexes.put(attribNames[i], i);
         }
@@ -57,73 +55,83 @@ public class Title {
     public Object[] attribs;
     public boolean selected;
     public volatile boolean fileChecked;
-    public static volatile String baseFolder;
+    public static volatile Path baseFolder;
     
     public Title(long id) {
         this.id = id;
         attribs = new Object[attribNames.length];
     }
-    
-    public long getSizeOnDisk() {
-        if(fileChecked) {
-            long l = (Long)attribs[getAttInd("Size")];
-            if(l==0) {
-                selected=false;
-            }
-            return l;
-        }
-        
+
+    private boolean find() {
         Object kind = attribs[getAttInd("Kind")];
         if(kind != null && kind instanceof String && ((String)kind).endsWith("Stream")) {
             selected = false;
             attribs[getAttInd("Size")] = 0L;
             fileChecked = true;
-            return 0;
+            return false;
         }
-        Object loc = attribs[attribIndexes.get("Location")];
+        Object loc = attribs[getAttInd("Location")];
         if(loc == null) {
             System.out.println("no location for "+toString());
             attribs[getAttInd("Size")] = 0L;
             fileChecked = true;
-            return 0;
+            return false;
         }
         if(!(loc instanceof String)) {
             System.out.println("location not valid "+toString());
             attribs[getAttInd("Size")] = 0L;
             fileChecked = true;
-            return 0;
+            return false;
         }
-        
-        File f;
-        String location = decodeLocation((String)loc);
-        f = new File(location);
-        if(!f.exists()) {
-            System.out.println("not found "+f.getAbsolutePath()+" in "+toString());
+
+        if(((String)loc).startsWith("file://localhost/")) {
+            loc = "file:///"+((String)loc).substring("file://localhost/".length());
+        }
+
+        Path p = new File(URI.create((String)loc)).toPath();
+        if(!Files.exists(p)) {
+            System.out.println("not found "+p.toAbsolutePath()+" in "+toString());
             attribs[getAttInd("Size")] = 0L;
             fileChecked = true;
-            return 0;
+            return false;
         }
-        if(!f.canRead()) {
-            System.out.println("can't read: "+toString());
-            attribs[getAttInd("Size")] = 0L;
-            attribs[attribIndexes.get("Location")] = location;
-            fileChecked = true;
-            return 0;
-        }
-        attribs[attribIndexes.get("Location")] = f.getAbsolutePath();
-        long size = f.length();
-        attribs[getAttInd("Size")] = size;
+        attribs[getAttInd("Location")] = p.toAbsolutePath();
         fileChecked = true;
-        return size;
+//        if(!Files.isReadable(p)) {
+        if(!p.toFile().canRead()) {
+            System.out.println("can't read: "+this);
+            attribs[getAttInd("Size")] = 0L;
+            return false;
+        }
+        long size;
+        try {
+            size = Files.size(p);
+            attribs[getAttInd("Size")] = size;
+            return true;
+        } catch (IOException ex) {
+            System.err.println(ex); //TODO handle gracefully
+        }
+        selected = false;
+        return false;
+
     }
 
-    public String getFile() {
-        if(fileChecked)
-        {
-            return (String)attribs[attribIndexes.get("Location")];
+    public long getSizeOnDisk() {
+        if(!fileChecked) {
+            find();
         }
-        getSizeOnDisk();
-        return (String)attribs[attribIndexes.get("Location")];
+        long l = (Long)attribs[getAttInd("Size")];
+            if(l==0) {
+                selected=false;
+            }
+        return l;
+    }
+
+    public Path getFile() throws IOException {
+        if(!fileChecked) {
+            find();
+        }
+        return (Path)attribs[getAttInd("Location")];
     }
     
     public long getLength() {
@@ -135,7 +143,6 @@ public class Title {
             return (Long)l;
         }
         System.out.println("time: "+l+" for "+toString());
-        
         return -1;
     }
     
@@ -155,24 +162,43 @@ public class Title {
             location = location.substring("file://localhost/".length());
         }
         try {
-            return URLDecoder.decode(location.replaceAll("\\+","%2b"),"UTF-8");
+            return URLDecoder.decode(location.replace("+","%2b"),"UTF-8");
         } catch (UnsupportedEncodingException ex) {
             ex.printStackTrace();
         }
         return location;
     }
     
-    public String getPathRelative() {
-        String pathAbsolute = getFile();
+    @Deprecated
+    public Path getPathRelative() throws IOException {
+        Path pathAbsolute = getFile();
         if(pathAbsolute == null)
         {
             return null;
         }
-        String without = pathAbsolute.replace(baseFolder, "");
-        if(without.equals(pathAbsolute)) {
-            System.out.println("relativePath: "+pathAbsolute+" does not contain "+baseFolder);
-            selected = false;
-        }
+        Path without = baseFolder.relativize(pathAbsolute);
         return without;
+    }
+
+    /**
+     * fetches the relative destination Path of the Title, usually Artist/Album/Title.
+     * the file extension is preserved from the source file.
+     * @return
+     */
+    public Path getDestRelative() {
+        if(!fileChecked) {
+            find();
+        }
+        Path p = (Path)attribs[getAttInd("Location")];
+        //check if we are below the base path
+        Path rel = baseFolder.relativize(p);
+        if(rel.startsWith("..")) {
+            // base path is outside of main path, construct one.
+            //TODO use a name scheme here
+            rel = p.subpath(p.getNameCount()-3,p.getNameCount());
+            //TODO check if we need to convert
+        }
+        
+        return rel;
     }
 }

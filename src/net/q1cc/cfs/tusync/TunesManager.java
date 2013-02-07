@@ -423,8 +423,9 @@ public class TunesManager {
             Entry<Path, Title> t = null;
             try {
                 main.gui.progressBar.setString("syncing titles: "+i+" / "+iMax+", "+humanize(bytes)+" / "+humanize(totalBytes));
-                if(bytes % bytesPerValue == 0) {
-                    main.gui.progressBar.setValue(++value);
+                if(bytes > bytesPerValue*value) {
+                    value = (int)(bytes/bytesPerValue);
+                    main.gui.progressBar.setValue(value);
                 }
                 t = titleIt.next();
                 Path targetfile = new File(targetPathFile +File.separator+ t.getKey()).toPath();

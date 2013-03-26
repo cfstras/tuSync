@@ -16,6 +16,7 @@ public class Main {
     public SyncGUI gui;
     public TunesManager tunesManager;
     public Preferences props;
+    public Converter conv;
 
     public static final boolean fileSystemCaseSensitive = !(new File( "a" ).equals( new File( "A" )));;
 
@@ -31,6 +32,7 @@ public class Main {
                 }
             }
         });
+        conv = new Converter();
     }
 
     private void init() {

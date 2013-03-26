@@ -151,6 +151,7 @@ public class TunesManager {
         
         loadTracks(lib);
         loadPlaylists(lib);
+        lib = null;
         main.gui.list.setModel(libModel);
         libModel.fireUpdate();
         if(main.props.getBoolean("lib.lastLoadWasSuccessful",false)) {
@@ -160,9 +161,9 @@ public class TunesManager {
             loadSelectedPlaylists();
             main.gui.repaint();
         }
-
-        main.props.putBoolean("lib.lastLoadWasSuccessful",true);
         
+        main.props.putBoolean("lib.lastLoadWasSuccessful",true);
+        postLibLoadHook();
         System.gc();
         //TODO we could serialize our database here.
     }
@@ -563,6 +564,20 @@ public class TunesManager {
         }
         main.gui.list.repaint();
         reCheck();
+    }
+
+    private void postLibLoadHook() {
+        //debug
+        HashSet<String> s = new HashSet<>();
+        for(Title t:titles.values()) {
+            String type = (String)t.attribs[Title.getAttInd("Kind")];
+            if (!s.contains(type)) {
+                s.add(type);
+                System.out.println(type);
+            }
+        }
+        
+        System.out.println("   lol");
     }
 
     private class ReCheckThread extends Thread {

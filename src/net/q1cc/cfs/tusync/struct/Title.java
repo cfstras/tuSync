@@ -29,7 +29,7 @@ public class Title {
         "Season", "Start Time", "Sort Composer", "Episode Order", "Content Rating",
         "Release Date", "Protected", "Purchased", "Episode", "Stop Time",
         "Equalizer", "Unplayed", "iTunesU", "Part Of Gapless Album", "Explicit",
-        "Sort Series", "Podcast", "Rating Computed"
+        "Sort Series", "Podcast", "Rating Computed", "Normalization"
     }; //TODO find out names
     //TODO ignore some attributes?
 

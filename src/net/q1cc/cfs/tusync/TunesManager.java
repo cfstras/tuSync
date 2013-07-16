@@ -8,6 +8,7 @@ import java.nio.file.FileVisitResult;
 import java.nio.file.FileVisitor;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -19,6 +20,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.StringTokenizer;
+import java.util.concurrent.TimeUnit;
 import java.util.prefs.Preferences;
 import java.util.regex.Pattern;
 import javax.swing.JOptionPane;
@@ -399,6 +401,7 @@ public class TunesManager {
             //walk dir and delete any extra files.
             main.gui.progressBar.setIndeterminate(true);
             main.gui.progressBar.setString("deleting other files...");
+            System.out.println("deleting other titles and building filelist");
             try {
                 for (String s : tunesTitleFolders){
                     Files.walkFileTree(new File(targetPathFile+File.separator+s).toPath(),
@@ -422,29 +425,53 @@ public class TunesManager {
         Iterator<Entry<Path, Title>> titleIt = titlesToSync.entrySet().iterator();
         while(titleIt.hasNext()) {
             Entry<Path, Title> t = null;
-            try {
-                main.gui.progressBar.setString("syncing titles: "+i+" / "+iMax+", "+humanize(bytes)+" / "+humanize(totalBytes));
-                if(bytes > bytesPerValue*value) {
-                    value = (int)(bytes/bytesPerValue);
-                    main.gui.progressBar.setValue(value);
+            main.gui.progressBar.setString("syncing titles: "+i+" / "+iMax+", "+humanize(bytes)+" / "+humanize(totalBytes));
+            if(bytes > bytesPerValue*value) {
+                value = (int)(bytes/bytesPerValue);
+                main.gui.progressBar.setValue(value);
+            }
+            t = titleIt.next();
+            Path targetfile = new File(targetPathFile +File.separator+ t.getKey()).toPath();
+            boolean success = false;
+            for(int tries = 0; tries < 3 && !success; tries++) {
+                if(tries>0) {
+                    System.out.println("trying again...");
                 }
-                t = titleIt.next();
-                Path targetfile = new File(targetPathFile +File.separator+ t.getKey()).toPath();
-
-                Path source = t.getValue().getFile();
-                filesInTarget.remove(targetfile);
-                Files.createDirectories(targetfile.getParent());
-                System.out.println("copying "+source +" to "+ targetfile);
-                Files.copy(source, targetfile, StandardCopyOption.REPLACE_EXISTING);
-                bytes += t.getValue().getSizeOnDisk();
-                i++;
-            } catch (IOException ex) {
-                ex.printStackTrace();
-            } catch (InvalidPathException ex) {
-                if(t!=null){
-                    System.out.println("Error at "+t.toString()+": "+ex);
-                } else {
-                    System.out.println("Error at "+ex);
+                try {
+                    Path source = t.getValue().getFile();
+                    if(Files.exists(targetfile, LinkOption.NOFOLLOW_LINKS)) {
+                        try {
+                            if(Files.size(source) == Files.size(targetfile)
+                            && Math.abs(Files.getLastModifiedTime(source).toMillis() - Files.getLastModifiedTime(targetfile).toMillis())
+                                <= TimeUnit.DAYS.toMillis(2))  {
+                                //skip if source older than destination, 2 days ignored
+                                break;
+                            } else {
+                                //put it back in
+                                System.out.println("replacing: srcTime:"+(Files.getLastModifiedTime(source).toString())
+                                +" dstTime: "+Files.getLastModifiedTime(targetfile).toString()+ " size:"+Files.size(source)
+                                +" src: "+source+" dest: "+targetfile);
+                                filesInTarget.remove(targetfile);
+                            }
+                        } catch (IOException e) {
+                            System.err.println(e);
+                        }
+                    }
+                    
+                    Files.createDirectories(targetfile.getParent());
+                    System.out.println("copying "+source +" to "+ targetfile);
+                    Files.copy(source, targetfile, StandardCopyOption.REPLACE_EXISTING);
+                    bytes += t.getValue().getSizeOnDisk();
+                    i++;
+                    success = true;
+                } catch (IOException ex) {
+                    ex.printStackTrace();
+                } catch (InvalidPathException ex) {
+                    if(t!=null){
+                        System.out.println("Error at "+t.toString()+": "+ex);
+                    } else {
+                        System.out.println("Error at "+ex);
+                    }
                 }
             }
         }
@@ -751,9 +778,9 @@ public class TunesManager {
                 empty = false;
                 Path source = t.getFile();
                 if(Files.size(source) == Files.size(file)
-                && Files.getLastModifiedTime(source).toMillis() - Files.getLastModifiedTime(file).toMillis()
-                    <= 1000)  {
-                    //skip if source older than destination, 1 second ignored
+                && Math.abs(Files.getLastModifiedTime(source).toMillis() - Files.getLastModifiedTime(file).toMillis())
+                    <= TimeUnit.DAYS.toMillis(2))  {
+                    //skip if source older than destination, 2 days ignored
                     /*System.out.println("Skipping: srcTime:"+(Files.getLastModifiedTime(source).toString())
                     +" dstTime: "+Files.getLastModifiedTime((Path)file).toString()+ " size:"+Files.size(source)
                     +" src: "+source+" dest: "+(Path)file);*/

@@ -1,16 +1,11 @@
 package net.q1cc.cfs.tusync;
 
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.nio.file.FileVisitResult;
 import java.nio.file.FileVisitor;
 import java.nio.file.Files;
-import java.nio.file.InvalidPathException;
-import java.nio.file.LinkOption;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -22,7 +17,7 @@ import java.util.Map.Entry;
 import java.util.StringTokenizer;
 import java.util.concurrent.TimeUnit;
 import java.util.prefs.Preferences;
-import java.util.regex.Pattern;
+
 import javax.swing.JOptionPane;
 import javax.swing.ListModel;
 import javax.swing.event.ListDataEvent;
@@ -31,7 +26,9 @@ import javax.swing.event.TreeModelEvent;
 import javax.swing.event.TreeModelListener;
 import javax.swing.tree.TreeModel;
 import javax.swing.tree.TreePath;
-import net.q1cc.cfs.tusync.struct.*;
+
+import net.q1cc.cfs.tusync.struct.Playlist;
+import net.q1cc.cfs.tusync.struct.Title;
 import xmlwise.Plist;
 import xmlwise.XmlParseException;
 
@@ -41,16 +38,11 @@ import xmlwise.XmlParseException;
  */
 public class TunesManager {
     
-    public final static String[] tunesTitleFolders = {
-    "Audiobooks", "Automatically Add to iTunes", "Automatisch zu iTunes hinzufügen",
-    "iPod Games", "iTunes U", "Mobile Applications", "Movies", "Music", "Podcasts",
-    "Ringtones", "Tones", "TV Shows"};
-    
-    private Main main;
+    private final Main main;
     public ArrayList<Playlist> playlists;
     public HashMap<Integer, Title> titles;
-    private ReCheckThread reCheckThread;
-    private HashMap<Path, Title> titlesToSync;
+    private final ReCheckThread reCheckThread;
+    private SyncTarget target;
     public Path baseFolder;
     TunesModel libModel;
     public boolean recheck;
@@ -269,7 +261,7 @@ public class TunesManager {
             Iterator<HashMap> listIt = entries.iterator();
             while (listIt.hasNext()) {
                 HashMap<String, Integer> entry = listIt.next();
-                playlist.addTitle(titles.get((Integer)entry.get("Track ID")));
+                playlist.addTitle(titles.get(entry.get("Track ID")));
             }
             playlists.add(playlist);
             //System.out.println("Playlist "+playlist.title+": "+playlist.tracks.size()+" tracks.");
@@ -304,10 +296,10 @@ public class TunesManager {
             return;
         }
 
-        titlesToSync = new HashMap<>(256);
-        syncPlaylists(targetPathFile);
-        syncTitles(targetPathFile);
-        titlesToSync = null;
+        target = new FileTarget(targetPathFile.toPath());
+        syncPlaylists();
+        syncTitles();
+        target = null;
         
         syncingLib=false;
         main.gui.setSyncButton(checkingSize, syncingLib, loadingLib);
@@ -315,171 +307,74 @@ public class TunesManager {
         System.gc();
     }
     
-    private void syncPlaylists(File targetPathFile) {
+    private void syncPlaylists() {
         main.gui.progressBar.setString("writing playlists...");
         main.gui.progressBar.setStringPainted(true);
         main.gui.progressBar.setMaximum(1100);
         main.gui.progressBar.setValue(0);
         main.gui.progressBar.setIndeterminate(false);
-        int playlistsPerStep = Math.max(1,playlists.size()/100);
-        int i=0, value=0;
+        int numPlaylists = playlists.size();
+        int percent = 0, i = 0;
         Iterator<Playlist> plIt = playlists.iterator();
         
         if(main.props.getBoolean("sync.deleteotherplaylists", false)) {
             main.gui.progressBar.setIndeterminate(true);
             main.gui.progressBar.setString("deleting old playlists...");
-            for( File f: targetPathFile.listFiles()) {
-                if(f.getName().endsWith(".m3u")) {
-                    f.delete();
-                }
-            }
+            target.deleteOldPlaylists();
             main.gui.progressBar.setString("writing playlists...");
             main.gui.progressBar.setIndeterminate(false);
         }
         
         while(plIt.hasNext()) {
-            PrintWriter out = null;
-            try {
-                if(i++ % playlistsPerStep == 0) {
-                    main.gui.progressBar.setValue(++value);
-                }
-                Playlist playlist = plIt.next();
-                if(!playlist.selected) {
-                    continue;
-                }
-                String filename = playlist.title.replaceAll("[^\\w"
-                    +Pattern.quote(" äöü-[].{}")+"]", "-").concat(".m3u");
-                File playlistFile = new File(targetPathFile.getAbsolutePath()+File.separator+filename);
-                System.out.println("Playlist "+playlist.title+" --> "+filename);
-                playlistFile.createNewFile();
-                out = new PrintWriter(new FileWriter(playlistFile, false));
-                
-                out.println("#EXTM3U");
-                Iterator<Title> titleIt = playlist.tracks.values().iterator();
-                while(titleIt.hasNext()) {
-                    Title t = titleIt.next();
-                    if(!t.selected) {
-                        continue;
-                    }
-                    Path pathRel = t.getDestRelative();
-                    if(pathRel == null || !t.selected)
-                    {
-                        continue;
-                    }
-                    out.print("#EXTINF:");
-                    out.print(t.getLength()/100);
-                    out.print(", ");
-                    out.print(t.attribs[Title.getAttInd("Artist")]);
-                    out.print(" - ");
-                    out.println(t.attribs[Title.getAttInd("Name")]);
-                    out.println(pathRel);
-                    titlesToSync.put(pathRel, t);
-                }
-                
-                out.println();
-                out.flush();
-                out.close();
-            } catch (IOException ex) {
-                ex.printStackTrace();
-            } finally {
-                if(out!=null) {
-                    out.flush();
-                    out.close();
-                }
+            Playlist list = plIt.next();
+            i++;
+            int npercent = i * 100 / numPlaylists;
+            if(npercent > percent) {
+                percent = npercent;
+                main.gui.progressBar.setValue(percent);
             }
-            main.gui.progressBar.setValue(100);
-            
+            if (!list.selected) {
+                continue;
+            }
+            ArrayList<SyncElement> elements = list.write(target);
+            target.addFiles(elements);
         }
-        
+        main.gui.progressBar.setValue(100);
     }
     
-    private void syncTitles(File targetPathFile) {
-        main.gui.progressBar.setString("syncing titles...");
-
-        HashSet<Path> filesInTarget = new HashSet<>(256);
-        if(main.props.getBoolean("sync.deleteothertitles", false)) {
-            //walk dir and delete any extra files.
-            main.gui.progressBar.setIndeterminate(true);
-            main.gui.progressBar.setString("deleting other files...");
-            System.out.println("deleting other titles and building filelist");
-            try {
-                for (String s : tunesTitleFolders){
-                    Files.walkFileTree(new File(targetPathFile+File.separator+s).toPath(),
-                        new FileDeleter(titlesToSync, targetPathFile.getAbsoluteFile().toPath()));
-                }
-            } catch (IOException ex) {
-                ex.printStackTrace();
-            }
-            main.gui.progressBar.setString("syncing titles...");
-            main.gui.progressBar.setIndeterminate(false);
+    private void syncTitles() {
+        target.startSync();
+        StateThread status = new StateThread(target);
+        status.start();
+        target.waitFinish();
+        status.run = false;
+        try {
+            status.join();
+        } catch (InterruptedException e) {
+            System.err.println(e);
         }
-        long bytesPerValue = Math.max(1,lastSize / 1000);
-        int value = 100, i = 0, iMax = titlesToSync.size();
-        long bytes = 0;
-        long totalBytes = 0;
-
-        for(Title t : titlesToSync.values()) {
-            totalBytes += t.getSizeOnDisk();
-        }
-
-        Iterator<Entry<Path, Title>> titleIt = titlesToSync.entrySet().iterator();
-        while(titleIt.hasNext()) {
-            Entry<Path, Title> t = null;
-            main.gui.progressBar.setString("syncing titles: "+i+" / "+iMax+", "+humanize(bytes)+" / "+humanize(totalBytes));
-            if(bytes > bytesPerValue*value) {
-                value = (int)(bytes/bytesPerValue);
-                main.gui.progressBar.setValue(value);
-            }
-            t = titleIt.next();
-            Path targetfile = new File(targetPathFile +File.separator+ t.getKey()).toPath();
-            boolean success = false;
-            for(int tries = 0; tries < 3 && !success; tries++) {
-                if(tries>0) {
-                    System.out.println("trying again...");
-                }
-                try {
-                    Path source = t.getValue().getFile();
-                    if(Files.exists(targetfile, LinkOption.NOFOLLOW_LINKS)) {
-                        try {
-                            if(Files.size(source) == Files.size(targetfile)
-                            && Math.abs(Files.getLastModifiedTime(source).toMillis() - Files.getLastModifiedTime(targetfile).toMillis())
-                                <= TimeUnit.DAYS.toMillis(2))  {
-                                //skip if source older than destination, 2 days ignored
-                                break;
-                            } else {
-                                //put it back in
-                                System.out.println("replacing: srcTime:"+(Files.getLastModifiedTime(source).toString())
-                                +" dstTime: "+Files.getLastModifiedTime(targetfile).toString()+ " size:"+Files.size(source)
-                                +" src: "+source+" dest: "+targetfile);
-                                filesInTarget.remove(targetfile);
-                            }
-                        } catch (IOException e) {
-                            System.err.println(e);
-                        }
-                    }
-                    
-                    Files.createDirectories(targetfile.getParent());
-                    System.out.println("copying "+source +" to "+ targetfile);
-                    Files.copy(source, targetfile, StandardCopyOption.REPLACE_EXISTING);
-                    bytes += t.getValue().getSizeOnDisk();
-                    i++;
-                    success = true;
-                } catch (IOException ex) {
-                    ex.printStackTrace();
-                } catch (InvalidPathException ex) {
-                    if(t!=null){
-                        System.out.println("Error at "+t.toString()+": "+ex);
-                    } else {
-                        System.out.println("Error at "+ex);
-                    }
-                }
-            }
-        }
-        main.gui.progressBar.setValue(1100);
-        main.gui.progressBar.setString("Titles successfully synced!");
         System.out.println("success.");
     }
-    
+
+    private class StateThread extends Thread{
+        boolean run = true;
+        SyncTarget target;
+        public StateThread(SyncTarget target) {
+            this.target = target;
+        }
+        @Override public void run() {
+            while (run) {
+                Main.instance().gui.progressBar.setValue(100+(int)(target.getProgress()*1000));
+                Main.instance().gui.progressBar.setString(target.getState());
+                try {
+                    Thread.sleep(50);
+                } catch (InterruptedException e) {}
+            }
+            main.gui.progressBar.setValue(1100);
+            main.gui.progressBar.setString("Titles successfully synced!");
+        }
+    }
+
     long lastSize = 0;
 
     public long getPlaylistSize(Collection<Title> tracks, HashSet<Title> ignore, long sizeBefore) {
@@ -532,21 +427,10 @@ public class TunesManager {
         long sizeDiv = targetSize / 500;
         main.gui.progressBar.setMaximum((int) (targetSize / sizeDiv));
         main.gui.progressBar.setValue((int) (size / sizeDiv));
-        main.gui.progressBar.setString(humanize(size) + " / " + humanize(targetSize)
+        main.gui.progressBar.setString(Util.humanize(size) + " / " + Util.humanize(targetSize)
                 + ((!finished) ? " " + progressIndicator.charAt((int) it) : " occupied."));
         main.gui.progressBar.setStringPainted(true);
         lastSize = size;
-    }
-    private static final String siPrefixes = "\0KMGTPEZY";
-
-    private static String humanize(long bytes) {
-        int prefixID = 0;
-        double divided = bytes;
-        while (divided >= 1000 && prefixID < siPrefixes.length()) {
-            divided /= 1024;
-            prefixID++;
-        }
-        return (Math.floor(divided * 100) / 100) + " " + siPrefixes.charAt(prefixID) + 'B';
     }
 
     void toggleSelected(Playlist playlist) {
@@ -658,7 +542,7 @@ public class TunesManager {
             } else if (parent == playlistsNode) {
                 return TunesManager.this.playlists.get(index);
             } else if (parent instanceof Playlist
-                && playlists.contains((Playlist)parent)) {
+                && playlists.contains(parent)) {
                 //TODO expand playlist to titles
                 return null;
             }
@@ -672,7 +556,7 @@ public class TunesManager {
             } else if (parent == playlistsNode) {
                 return TunesManager.this.playlists.size();
             } else if (parent instanceof Playlist
-                && TunesManager.this.playlists.contains((Playlist)parent)) {
+                && TunesManager.this.playlists.contains(parent)) {
                 return 0;
                 //return ((Playlist)parent).tracks.size();
             }

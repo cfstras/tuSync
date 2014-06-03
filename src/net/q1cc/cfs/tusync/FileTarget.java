@@ -9,7 +9,6 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
 
@@ -31,8 +30,7 @@ public class FileTarget implements SyncTarget {
 
     @Override
     public void addFiles(Collection<SyncElement> files) {
-        // TODO Auto-generated method stub
-
+        this.files.addAll(files);
     }
 
     @Override
@@ -50,7 +48,6 @@ public class FileTarget implements SyncTarget {
     
     private void doSync() {
         progress = 0;
-        HashSet<Path> filesInTarget = new HashSet<>(256);
         if(main.props.getBoolean("sync.deleteothertitles", false)) {
             //walk dir and delete any extra files.
             state = "deleting other files...";
@@ -97,7 +94,6 @@ public class FileTarget implements SyncTarget {
                                 System.out.println("replacing: srcTime:"+(Files.getLastModifiedTime(source).toString())
                                 +" dstTime: "+Files.getLastModifiedTime(targetfile).toString()+ " size:"+Files.size(source)
                                 +" src: "+source+" dest: "+targetfile);
-                                filesInTarget.remove(targetfile);
                             }
                         } catch (IOException e) {
                             System.err.println(e);

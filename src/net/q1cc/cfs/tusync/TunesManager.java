@@ -632,7 +632,6 @@ public class TunesManager {
     }
 
     private static class FileDeleter implements FileVisitor<Path> {
-
         HashMap<Path, Title> notThese;
         Path basePath;
         boolean empty = false;

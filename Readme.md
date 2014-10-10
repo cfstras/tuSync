@@ -1,4 +1,4 @@
-tuSync
+tuSync [![Build Status](https://travis-ci.org/cfstras/tuSync.svg?branch=mtp)](https://travis-ci.org/cfstras/tuSync)
 ======
 
 ###Why?
